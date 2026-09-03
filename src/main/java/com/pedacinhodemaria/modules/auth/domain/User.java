@@ -55,4 +55,16 @@ public class User {
     private Instant createdAt;
 
     private Instant updatedAt;
+
+    /**
+     * NOVO (Fase 2A). Hash SHA-256 do capability token de aprovação enviado
+     * à dona via WhatsApp — nunca o token bruto (ver ApprovalTokenGenerator).
+     * Nulo fora de uma solicitação de aprovação em aberto: começa nulo antes
+     * do primeiro envio e volta a nulo assim que o token é consumido
+     * (single-use, ver ProcessUserApprovalUseCase).
+     */
+    private String approvalTokenHash;
+
+    /** Expiração do token acima. Nulo pelo mesmo motivo de approvalTokenHash. */
+    private Instant approvalTokenExpiresAt;
 }
