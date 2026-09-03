@@ -30,6 +30,7 @@ public class RegisterUserUseCase {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SendApprovalRequestWhatsAppMessageUseCase sendApprovalRequestWhatsAppMessageUseCase;
 
     public UserResponse execute(RegisterRequest request) {
         // Normalização de e-mail (trim + lowercase) antes de checar
@@ -56,11 +57,12 @@ public class RegisterUserUseCase {
         User saved = userRepository.save(user);
         log.info("Novo cadastro no Kitchen Dashboard: {} — aguardando aprovação", saved.getEmail());
 
-        // Ponto de extensão para fase futura: notificar a proprietária via
-        // WhatsApp aqui, reaproveitando o mesmo padrão Port/Adapter de
-        // SendOrderReadyWhatsAppMessageUseCase (ler OWNER_WHATSAPP_NUMBER
-        // de variável de ambiente). Não implementado nesta fase, conforme
-        // combinado — só o registro do comentário como marcador do lugar.
+        // NOVO (Fase 2A): gera o capability token de aprovação e notifica a
+        // proprietária via WhatsApp, reaproveitando o mesmo Port/Adapter de
+        // SendOrderReadyWhatsAppMessageUseCase. Se o WhatsApp não estiver
+        // configurado ou falhar, o cadastro NÃO é revertido — o usuário
+        // continua PENDING normalmente (ver SendApprovalRequestWhatsAppMessageUseCase).
+        sendApprovalRequestWhatsAppMessageUseCase.execute(saved);
 
         return toResponse(saved);
     }
