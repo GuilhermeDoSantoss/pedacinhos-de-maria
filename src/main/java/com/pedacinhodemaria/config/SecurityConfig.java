@@ -3,9 +3,12 @@ package com.pedacinhodemaria.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -24,6 +27,11 @@ import java.util.List;
  *  3. Headers de segurança básicos (anti-clickjacking, anti-MIME-sniffing)
  *     continuam ativos — não têm custo e não dependem de autenticação.
  *  4. Toda rota que ainda não existe fica bloqueada por padrão (denyAll).
+ *
+ * (auth): a rota de auto-cadastro é pública por natureza — não existe
+ * usuário autenticado antes de se cadastrar. Login/JWT permanecem fora do
+ * escopo desta fase (ver RegisterUserUseCase); quando entrarem, as demais
+ * rotas de negócio deixarão de ser permitAll — não antecipamos isso aqui.
  */
 @Configuration
 public class SecurityConfig {
@@ -40,24 +48,10 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
                         .contentTypeOptions(contentTypeOptions -> {})
-                        // Reduz o quanto a URL de origem vaza em navegação cross-site —
-                        // não muda nenhum comportamento funcional, só hardening.
                         .referrerPolicy(referrer -> referrer
                                 .policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                        // Desliga explicitamente APIs de navegador que este app nunca usa
-                        // (câmera, microfone, geolocalização) — reduz superfície de ataque
-                        // caso algum script de terceiro (analytics, etc.) seja adicionado
-                        // no futuro e tente abusar dessas permissões sem o usuário perceber.
                         .permissionsPolicy(permissions -> permissions
                                 .policy("camera=(), microphone=(), geolocation=()"))
-                        // Explícito, não implícito: o Spring Security já inclui isso por
-                        // padrão quando .headers(...) é usado sem desabilitar, mas deixar
-                        // implícito significa que qualquer alteração futura nesta config
-                        // poderia silenciosamente perder essa proteção sem ninguém notar.
-                        // Sem no-store, o navegador pode servir uma resposta antiga do
-                        // cache (304 + corpo do cache) para o cardápio/pedidos depois de
-                        // uma mudança no MongoDB — dado sempre mutável não pode ser
-                        // cacheado pelo navegador em nenhuma hipótese.
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/menu/**").permitAll()
@@ -66,14 +60,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/drinks/**").permitAll()
                         .requestMatchers("/api/v1/orders/**").permitAll()
                         .requestMatchers("/api/v1/kitchen/**").permitAll()
+                        // NOVO (Fase 1): sem isso, POST /api/v1/auth/register caía no
+                        // anyRequest().denyAll() abaixo e retornava 403 antes mesmo de
+                        // chegar no AuthController — o cadastro nunca funcionou com a
+                        // config anterior. Restrito a POST de propósito: não há motivo
+                        // pra GET/PUT/DELETE existirem nesse path.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
                         .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        // Imagens do cardápio (pratos, bebidas etc.), servidas como
-                        // recurso estático. Restrito a GET/HEAD de propósito — é
-                        // conteúdo só-leitura; não há motivo pra POST/PUT/DELETE
-                        // nunca serem permitidos aqui, mesmo que algum handler futuro
-                        // viesse a aceitar esses métodos por engano nesse path.
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/uploads/**").permitAll()
                         .anyRequest().denyAll()
                 );
@@ -81,16 +76,30 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * NOVO (Fase 1). Não encontrado em nenhuma outra classe do projeto
+     * (SecurityConfig, MongoIndexInitializer, User, UserRepository,
+     * RegisterUserUseCase, AuthController, RegisterRequest, UserResponse,
+     * EmailAlreadyExistsException — nenhuma define PasswordEncoder). Único
+     * bean do tipo no projeto; RegisterUserUseCase o injeta por construtor.
+     * Fica aqui por ser a classe @Configuration de segurança já existente —
+     * não criei uma classe nova só para isso.
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
     private CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration configuration = new CorsConfiguration();
 
-    configuration.setAllowedOriginPatterns(List.of("*"));
-    configuration.setAllowedMethods(List.of("*"));
-    configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(List.of("*"));
+        configuration.setAllowedHeaders(List.of("*"));
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", configuration);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
 
-    return source;
-}
+        return source;
+    }
 }
