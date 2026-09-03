@@ -10,4 +10,7 @@ public interface UserRepository extends MongoRepository<User, String> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    /** NOVO (Fase 2A). Usado por ProcessUserApprovalUseCase para localizar o usuário a partir do capability token recebido no link do WhatsApp. */
+    Optional<User> findByApprovalTokenHash(String approvalTokenHash);
 }
