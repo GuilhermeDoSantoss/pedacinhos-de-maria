@@ -34,6 +34,10 @@ public class MongoIndexInitializer implements ApplicationRunner {
     private static final String ORDERS_COLLECTION = "orders";
     private static final String CREATED_AT_FIELD = "createdAt";
 
+    // Confirmado em User.java: @Document(collection = "users").
+    private static final String USERS_COLLECTION = "users";
+    private static final String EMAIL_FIELD = "email";
+
     private final MongoTemplate mongoTemplate;
 
     @Value("${app.order-retention-days}")
@@ -46,6 +50,7 @@ public class MongoIndexInitializer implements ApplicationRunner {
         ensureMealDisplayOrderIndex();
         ensureSideDishDisplayOrderIndex();
         ensureExtraDisplayOrderIndex();
+        ensureUserEmailUniqueIndex();
     }
 
     /**
@@ -110,5 +115,20 @@ public class MongoIndexInitializer implements ApplicationRunner {
         mongoTemplate.indexOps("extras").ensureIndex(
                 new Index().named("active_display_order").on("active", org.springframework.data.domain.Sort.Direction.ASC)
                         .on("displayOrder", org.springframework.data.domain.Sort.Direction.ASC));
+    }
+
+    /**
+     * Garante unicidade de e-mail no banco — a última linha
+     * de defesa contra cadastro duplicado, além do existsByEmail() feito em
+     * RegisterUserUseCase. O check em memória sozinho tem uma janela de
+     * corrida (duas requisições concorrentes com o mesmo e-mail podem passar
+     * pelo existsByEmail() antes de qualquer uma delas salvar); o índice
+     * único no Mongo é o que de fato impede o dado duplicado de existir.
+     * Mesmo padrão exato dos demais índices desta classe — nenhum mecanismo
+     * paralelo foi criado.
+     */
+    private void ensureUserEmailUniqueIndex() {
+        mongoTemplate.indexOps(USERS_COLLECTION).ensureIndex(
+                new Index().named("email_unique").on(EMAIL_FIELD, org.springframework.data.domain.Sort.Direction.ASC).unique());
     }
 }
