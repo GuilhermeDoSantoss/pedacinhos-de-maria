@@ -3,6 +3,8 @@ import { qs, show, hide } from './utils/domHelpers.js';
 import { fetchActiveOrders, updateOrderStatus, sendReadyWhatsAppMessage } from './api/ordersApi.js';
 import { ColumnManager } from './modules/columnManager.js';
 import { StompClient } from './modules/wsClient.js';
+import { hasValidSession, clearSession } from './auth/session.js';
+import { initAuthGate } from './auth/authGate.js';
 
 // Intervalo de verificação da automação de 35 minutos — não precisa ser tão
 // frequente quanto o scheduler do backend (15s); o ganho de precisão de
@@ -15,13 +17,41 @@ let columnManager;
 let stompClient;
 
 /**
- * Sem guarda de autenticação nesta versão — o dashboard abre direto no gate
- * de início de turno. O gate continua existindo como o passo inicial do
- * turno da cozinha, independente de áudio (que foi removido — ver ADR em
- * checkAutoReadyTransitions, em columnManager.js).
+ * NOVO (Fase 2B): ponto de entrada agora decide entre a tela de auth e a
+ * área da cozinha, em vez de ir direto pro gate de início de turno. O board
+ * em si (colunas, WebSocket, ações de pedido) continua exatamente como
+ * era — só ganhou uma guarda na frente.
  */
-function bootstrap() {
-    qs('#start-shift-button').addEventListener('click', startShift);
+function bootstrapApp() {
+    if (hasValidSession()) {
+        enterKitchenArea();
+    } else {
+        showAuthGate();
+    }
+}
+
+function showAuthGate() {
+    show(qs('#auth-gate'));
+    hide(qs('#shift-gate'));
+    hide(qs('#board'));
+    initAuthGate(enterKitchenArea);
+}
+
+/** Chamado tanto na carga inicial (sessão já válida) quanto após login bem-sucedido. */
+function enterKitchenArea() {
+    hide(qs('#auth-gate'));
+    show(qs('#shift-gate'));
+    qs('#start-shift-button').addEventListener('click', startShift, { once: true });
+    qs('#logout-button')?.addEventListener('click', handleLogout);
+}
+
+function handleLogout() {
+    clearSession();
+    // Recarregar é a forma mais simples de resetar todo o estado em memória
+    // (columnManager, conexão STOMP) sem introduzir um mecanismo de reset
+    // manual só para esse caso raro — condizente com "não introduzir
+    // complexidade desnecessária" já pedido para o resto do projeto.
+    window.location.reload();
 }
 
 async function startShift() {
@@ -60,11 +90,26 @@ async function handleAdvance(orderCode, nextStatus) {
     }
 }
 
-/** Chamado quando o funcionário clica no telefone do cliente no ticket — dispara a mensagem de WhatsApp via backend. */
+/**
+ * Chamado quando o funcionário clica no telefone do cliente no ticket —
+ * dispara a mensagem de WhatsApp via backend. NOVO (Fase 2B): este é o
+ * único endpoint protegido por JWT (ver SecurityConfig, Fase 2A) — trata
+ * 401 (sessão expirada/inválida) e 403 (sem permissão) especificamente.
+ */
 async function handleNotifyReady(orderCode) {
     try {
         await sendReadyWhatsAppMessage(orderCode);
     } catch (err) {
+        if (err.status === 401) {
+            alert('Sua sessão expirou. Faça login novamente.');
+            clearSession();
+            window.location.reload();
+            return;
+        }
+        if (err.status === 403) {
+            alert('Você não tem permissão para essa ação.');
+            return;
+        }
         console.error('Falha ao enviar mensagem de WhatsApp:', err);
         alert('Não foi possível enviar a mensagem de WhatsApp. Tente novamente.');
     }
@@ -98,4 +143,4 @@ function handleKitchenEvent(message) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', bootstrap);
+document.addEventListener('DOMContentLoaded', bootstrapApp);
