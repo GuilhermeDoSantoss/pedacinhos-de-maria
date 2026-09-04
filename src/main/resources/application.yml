@@ -53,6 +53,24 @@ app:
     # comportamento de antes, sem mais um valor-fantasma parecendo real.
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
+    # NOVO (Fase 2A). Sem default de propósito, mesmo padrão de
+    # WHATSAPP_ACCESS_TOKEN acima — número real da dona, não hardcoded.
+    # Ausente = SendApprovalRequestWhatsAppMessageUseCase loga e segue sem
+    # enviar (mesmo comportamento gracioso do resto da integração).
+    owner-phone-number: ${WHATSAPP_OWNER_PHONE_NUMBER:}
+
+  # NOVO (Fase 2A). Capability token de aprovação de cadastro.
+  approval:
+    token-expiration-hours: ${APPROVAL_TOKEN_EXPIRATION_HOURS:48}
+    # Necessário para montar os links absolutos de accept/reject enviados
+    # ao WhatsApp da dona. Em produção precisa ser a URL real do Render.
+    base-url: ${APP_BASE_URL:http://localhost:8080}
+
+# NOVO (Fase 2A). Sem default para o secret — mesmo padrão de MONGODB_URI:
+# obrigatório em qualquer ambiente, nunca hardcoded.
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS:3600000}
 
 management:
   endpoints:

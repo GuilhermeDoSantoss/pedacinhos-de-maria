@@ -1,0 +1,21 @@
+# Perfil "test" — carregado automaticamente pelo Spring Boot sempre que o
+# profile ativo se chama "test" (mesma convenção de application-dev.yml e
+# application-prod.yml já usada no projeto), SEM precisar de
+# @TestPropertySource nem de qualquer mudança em código de teste.
+#
+# Por que isso não é um "segredo de teste vazando pra produção": este
+# arquivo vive em src/test/resources, que o Maven só inclui no classpath de
+# TESTE. O spring-boot-maven-plugin (goal repackage, usado para gerar o jar
+# executável de produção) só empacota src/main/resources — este arquivo não
+# tem como ir parar no artefato publicado. Não é uma questão de disciplina
+# de quem commita; é estrutural.
+#
+# jwt.secret aqui é uma string fixa, não ${JWT_SECRET} — de propósito: não
+# queremos exigir a variável de ambiente real durante "mvn clean test", e
+# não queremos (nem podemos, por design) que este valor tenha qualquer
+# relação com o segredo real de produção. 64 caracteres ASCII = 512 bits,
+# folga confortável acima do mínimo de 256 bits que HMAC-SHA exige — o
+# mesmo raciocínio de tamanho já usado em JwtServiceTest.
+jwt:
+  secret: mvn-clean-test-chave-exclusiva-de-teste-nunca-usar-fora-de-testes-automatizados
+  expiration-ms: 3600000
