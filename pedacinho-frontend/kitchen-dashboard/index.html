@@ -3,19 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pedacinho de Maria — Cozinha</title>
+    <title>Pedacinhos de Maria - Cozinha</title>
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
+<!-- NOVO (Fase 2B): tela de autenticação. Visível por padrão — só é
+     escondida por dashboard.js depois de confirmar uma sessão válida (ou
+     depois de um login bem-sucedido). Sem isso, o dashboard seria acessível
+     a qualquer pessoa que abrisse a página. -->
+<div id="auth-gate" class="auth-gate">
+    <div class="auth-card">
+        <img src="assets/icons/flower.svg" alt="" class="auth-card__flower" aria-hidden="true">
+        <h1 class="auth-card__title">Pedacinhos de Maria</h1>
+        <p class="auth-card__subtitle">Área da cozinha</p>
+
+        <form id="login-form" class="auth-form">
+            <div class="form-group">
+                <label for="login-email">E-mail</label>
+                <input type="email" id="login-email" name="email" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="login-password">Senha</label>
+                <input type="password" id="login-password" name="password" required autocomplete="current-password">
+            </div>
+            <p id="login-error" class="form-error hidden" role="alert"></p>
+            <button type="submit" id="login-submit" class="btn btn--primary auth-form__submit">Entrar</button>
+        </form>
+
+        <form id="register-form" class="auth-form hidden">
+            <div class="form-group">
+                <label for="register-name">Nome</label>
+                <input type="text" id="register-name" name="name" required minlength="2" maxlength="100" autocomplete="name">
+            </div>
+            <div class="form-group">
+                <label for="register-email">E-mail</label>
+                <input type="email" id="register-email" name="email" required autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="register-password">Senha</label>
+                <input type="password" id="register-password" name="password" required minlength="8" maxlength="72" autocomplete="new-password">
+                <span class="form-hint">Mínimo de 8 caracteres.</span>
+            </div>
+            <p id="register-error" class="form-error hidden" role="alert"></p>
+            <button type="submit" id="register-submit" class="btn btn--primary auth-form__submit">Criar acesso</button>
+        </form>
+
+        <div id="pending-message" class="auth-message hidden" role="status">
+            <p>Cadastro realizado. Sua solicitação está aguardando aprovação da responsável pelo estabelecimento.</p>
+            <p>Você só poderá acessar a cozinha após a aprovação.</p>
+            <button type="button" id="back-to-login-button" class="btn auth-form__link-button">Voltar para o login</button>
+        </div>
+
+        <div class="auth-toggle">
+            <button type="button" id="show-register-button" class="auth-toggle__link">Ainda não tem acesso? Criar acesso</button>
+            <button type="button" id="show-login-button" class="auth-toggle__link hidden">Já tem uma conta? Entrar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Gate de início de turno — passo inicial do turno da cozinha. Não
      desbloqueia mais áudio (alerta sonoro removido); pedidos atrasados
      são movidos automaticamente para "Pronto" após 35min em "Preparando"
-     (ver checkAutoReadyTransitions em columnManager.js), sem alerta. -->
-<div id="shift-gate" class="shift-gate">
+     (ver checkAutoReadyTransitions em columnManager.js), sem alerta.
+     NOVO (Fase 2B): agora começa escondido — só aparece depois que
+     dashboard.js confirma uma sessão válida. -->
+<div id="shift-gate" class="shift-gate hidden">
     <div class="shift-gate__content">
         <img src="assets/icons/flower.svg" alt="" class="shift-gate__flower" aria-hidden="true">
-        <h1>Pedacinho de Maria</h1>
+        <h1>Pedacinhos de Maria</h1>
         <p>Painel da cozinha</p>
         <button id="start-shift-button" type="button" class="btn btn--primary btn--large">
             Iniciar Turno
@@ -26,7 +83,8 @@
 <div id="board" class="board hidden">
     <header class="board__header">
         <img src="assets/icons/flower.svg" alt="" class="board__flower" aria-hidden="true">
-        <h1 class="board__title">Pedacinho de Maria — Cozinha</h1>
+        <h1 class="board__title">Pedacinhos de Maria - Cozinha</h1>
+        <button id="logout-button" type="button" class="btn board__logout">Sair</button>
     </header>
 
     <p id="board-error" class="board-error hidden"></p>
