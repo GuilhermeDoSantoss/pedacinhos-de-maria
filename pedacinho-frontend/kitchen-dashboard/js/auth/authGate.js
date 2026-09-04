@@ -103,7 +103,7 @@ function validateRegister({ name, email, password }) {
 /**
  * Mensagem única para QUALQUER falha de login (senha errada, e-mail
  * inexistente, conta PENDING ou REJECTED). Não é uma limitação de UX — é o
- * próprio backend (AuthenticateUserUseCase) devolvendo a mesma
+ * próprio backend (AuthenticateUserUseCase, Fase 2A) devolvendo a mesma
  * resposta genérica para os 4 casos de propósito, para não permitir
  * descobrir por tentativa e erro se um e-mail está cadastrado ou qual é o
  * status de uma conta. O frontend não tem como diferenciar PENDING de
@@ -114,7 +114,7 @@ function loginErrorMessage(err) {
     if (err instanceof AuthApiError && err.status === 401) {
         return 'E-mail ou senha inválidos, ou sua conta ainda não foi aprovada pela responsável pelo estabelecimento.';
     }
-    if (err instanceof AuthApiError && err.status === 400) {
+    if (err instanceof AuthApiError && (err.status === 400 || err.status === 0)) {
         return err.message || 'Verifique os dados informados.';
     }
     return 'Não foi possível entrar agora. Tente novamente em instantes.';
@@ -124,7 +124,7 @@ function registerErrorMessage(err) {
     if (err instanceof AuthApiError && err.status === 409) {
         return 'Já existe uma conta cadastrada com este e-mail.';
     }
-    if (err instanceof AuthApiError && err.status === 400) {
+    if (err instanceof AuthApiError && (err.status === 400 || err.status === 0)) {
         return err.message || 'Verifique os dados informados.';
     }
     return 'Não foi possível concluir o cadastro agora. Tente novamente em instantes.';
