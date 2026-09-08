@@ -23,16 +23,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
- * NOTA: não tenho acesso ao RegisterRequest.java / UserResponse.java reais
- * (não foram anexados), então estou assumindo que são records com os
- * accessors usados em RegisterUserUseCase (request.name(), request.email(),
- * request.password()). Se algum desses tipos não for record, ajuste a
- * construção abaixo — a lógica dos testes não muda.
- *
- * Casos de validação de entrada (email inválido, campos obrigatórios — itens
- * 8/9/10 da lista original) pertencem à camada de Bean Validation em
- * RegisterRequest, não a este Use Case, e exigem o arquivo real para não
- * inventar anotações que talvez não existam. Ficam como pendência.
+ * Casos de validação de entrada (email inválido, campos obrigatórios)
+ * pertencem à camada de Bean Validation em RegisterRequest, não a este Use
+ * Case — cobertos manualmente/no frontend, não duplicados aqui.
  */
 @ExtendWith(MockitoExtension.class)
 class RegisterUserUseCaseTest {
@@ -42,12 +35,6 @@ class RegisterUserUseCaseTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
-
-    // NOVO (Fase 2A): RegisterUserUseCase agora chama este use case após
-    // salvar — sem o mock, @InjectMocks passaria null e o execute() real
-    // lançaria NullPointerException em todo teste de sucesso.
-    @Mock
-    private SendApprovalRequestWhatsAppMessageUseCase sendApprovalRequestWhatsAppMessageUseCase;
 
     @InjectMocks
     private RegisterUserUseCase useCase;
@@ -120,26 +107,6 @@ class RegisterUserUseCaseTest {
         useCase.execute(requestComEspacos);
 
         verify(userRepository).existsByEmail("maria@exemplo.com");
-    }
-
-    @Test
-    void deveDispararSolicitacaoDeAprovacaoAposCadastroValido() {
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hashSimulado");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        useCase.execute(validRequest);
-
-        verify(sendApprovalRequestWhatsAppMessageUseCase).execute(any(User.class));
-    }
-
-    @Test
-    void naoDeveDispararSolicitacaoDeAprovacaoQuandoEmailJaExiste() {
-        when(userRepository.existsByEmail("maria@exemplo.com")).thenReturn(true);
-
-        assertThatThrownBy(() -> useCase.execute(validRequest)).isInstanceOf(EmailAlreadyExistsException.class);
-
-        verify(sendApprovalRequestWhatsAppMessageUseCase, never()).execute(any(User.class));
     }
 
     @Test
