@@ -89,15 +89,14 @@ public class SecurityConfig {
                         // abaixo e retornava 403 antes mesmo de chegar no AuthController.
                         // Restrito a POST de propósito: não há motivo pra GET/PUT/DELETE.
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
-                        // NOVO (Fase 2A): login é público pela mesma razão do
+                        // NOVO: login é público pela mesma razão do
                         // cadastro — não existe usuário autenticado antes de logar.
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-                        // NOVO (Fase 2A): o link clicado pela dona no WhatsApp não
-                        // carrega JWT — a autenticação dessa rota é o próprio
-                        // capability token no path, validado dentro do controller
-                        // (ver UserApprovalController). Restrito a GET, que é o único
-                        // verbo que um link de WhatsApp consegue disparar.
-                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/approvals/**").permitAll()
+                        // NOVO: administração de usuários — exclusivo de OWNER
+                        // autenticado. Vem antes do denyAll final, e não há
+                        // nenhum matcher mais genérico que /admin/** que precise
+                        // vir antes dele (nenhuma outra regra usa esse prefixo).
+                        .requestMatchers("/api/v1/admin/**").hasRole("OWNER")
                         .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
@@ -112,7 +111,7 @@ public class SecurityConfig {
     }
 
     /**
-     * Expõe o AuthenticationManager oficial do Spring
+     * NOVO (Fase 2A). Expõe o AuthenticationManager oficial do Spring
      * Security (mecanismo pedido explicitamente, não implementação
      * artesanal) — o Spring Boot o autoconfigura a partir do
      * PedacinhoUserDetailsService e do PasswordEncoder abaixo, ambos já
@@ -124,7 +123,7 @@ public class SecurityConfig {
     }
 
     /**
-     * Não encontrado em nenhuma outra classe do projeto
+     * NOVO (Fase 1). Não encontrado em nenhuma outra classe do projeto
      * (SecurityConfig, MongoIndexInitializer, User, UserRepository,
      * RegisterUserUseCase, AuthController, RegisterRequest, UserResponse,
      * EmailAlreadyExistsException — nenhuma define PasswordEncoder). Único
