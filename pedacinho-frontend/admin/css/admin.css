@@ -1,0 +1,248 @@
+/* Paleta idêntica à do kitchen-dashboard (mesmos hex de dashboard.css) —
+   identidade visual consistente entre os 3 frontends, nenhuma cor nova. */
+:root {
+    --color-bg: #1F1614;
+    --color-surface: #2B1F1C;
+    --color-surface-elevated: #382924;
+    --color-text: #F5EAE6;
+    --color-text-muted: #B39C94;
+    --color-border: #4A362F;
+    --color-primary: #E08579;
+
+    --color-pending: #D9A441;
+    --color-approved: #6B9080;
+    --color-rejected: #D1554A;
+}
+
+body {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+/* ---------- Login ---------- */
+
+.auth-gate {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+}
+
+.auth-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-xl) var(--space-lg);
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+}
+
+.auth-card__title {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--color-primary);
+    margin-bottom: 2px;
+}
+
+.auth-card__subtitle {
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-lg);
+}
+
+.auth-form {
+    text-align: left;
+}
+
+.form-group {
+    margin-bottom: var(--space-md);
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem var(--space-sm);
+    min-height: 48px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+}
+
+.form-group input:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+}
+
+.auth-form__submit {
+    width: 100%;
+    background: var(--color-primary);
+    color: var(--color-bg);
+    min-height: 48px;
+    margin-top: var(--space-xs);
+}
+
+/* ---------- Painel ---------- */
+
+.panel {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--space-lg);
+}
+
+.panel__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.panel__header h1 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--color-primary);
+}
+
+.panel__owner-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--color-surface-elevated);
+    color: var(--color-text-muted);
+}
+
+.panel__logout {
+    margin-left: auto;
+    background: var(--color-surface-elevated);
+    color: var(--color-text);
+    padding: var(--space-xs) var(--space-md);
+    font-size: 0.9rem;
+    min-height: 44px;
+}
+
+.panel-error {
+    margin-bottom: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-rejected);
+    border-radius: var(--radius-sm);
+}
+
+/* ---------- Filtros ---------- */
+
+.filter-tabs {
+    display: flex;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-lg);
+    flex-wrap: wrap;
+}
+
+.filter-tab {
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    padding: var(--space-xs) var(--space-md);
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 44px;
+}
+
+.filter-tab--active {
+    background: var(--color-primary);
+    color: var(--color-bg);
+}
+
+/* ---------- Lista de usuários ---------- */
+
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.user-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-md);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.user-card__info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.user-card__name {
+    font-size: 1.05rem;
+    margin-bottom: 2px;
+}
+
+.user-card__email {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.user-card__date {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    margin-top: var(--space-xs);
+}
+
+.status-badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    color: var(--color-bg);
+}
+
+.status-badge--pending { background: var(--color-pending); }
+.status-badge--approved { background: var(--color-approved); }
+.status-badge--rejected { background: var(--color-rejected); color: var(--color-text); }
+
+.user-card__actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.btn--approve {
+    background: var(--color-approved);
+    color: var(--color-bg);
+    min-height: 44px;
+}
+
+.btn--reject {
+    background: transparent;
+    border: 1px solid var(--color-rejected);
+    color: var(--color-rejected);
+    min-height: 44px;
+}
+
+.empty-message {
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: var(--space-xl);
+}
+
+@media (max-width: 600px) {
+    .panel { padding: var(--space-md); }
+    .user-card { flex-direction: column; align-items: flex-start; }
+    .user-card__actions { width: 100%; }
+    .user-card__actions .btn { flex: 1; }
+}

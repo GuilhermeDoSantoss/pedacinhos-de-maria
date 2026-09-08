@@ -39,34 +39,24 @@ app:
   whatsapp:
     # api-url não é segredo — tem default público. phone-number-id e
     # access-token são credenciais reais do WhatsApp Business e NÃO têm
-    # default: precisam vir de variável de ambiente em qualquer ambiente,
-    # mesmo padrão já usado acima para MONGODB_URI. Os valores "teste"
-    # anteriores nunca teriam funcionado contra a Cloud API de verdade —
-    # eram placeholder esquecido, não configuração intencional.
+    # default: precisam vir de variável de ambiente em qualquer ambiente.
+    # Usadas exclusivamente pelo aviso de "pedido pronto" — a antiga
+    # aprovação de usuário via WhatsApp foi removida, e com ela a property
+    # app.whatsapp.owner-phone-number (órfã, removida também).
     api-url: ${WHATSAPP_API_URL:https://graph.facebook.com/v23.0}
-    # Default vazio (não obrigatório) de propósito: diferente de MONGODB_URI,
-    # que já era documentado como obrigatório em qualquer ambiente, a
-    # integração de WhatsApp é opcional e sua falha já é tratada de forma
-    # graciosa (ver WhatsAppCloudApiMessageSender — loga o erro, não derruba
-    # a requisição). Faltar essas duas variáveis não deve impedir o boot da
-    # aplicação, só faz o envio de WhatsApp falhar quando disparado — mesmo
-    # comportamento de antes, sem mais um valor-fantasma parecendo real.
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
-    # NOVO (Fase 2A). Sem default de propósito, mesmo padrão de
-    # WHATSAPP_ACCESS_TOKEN acima — número real da dona, não hardcoded.
-    # Ausente = SendApprovalRequestWhatsAppMessageUseCase loga e segue sem
-    # enviar (mesmo comportamento gracioso do resto da integração).
-    owner-phone-number: ${WHATSAPP_OWNER_PHONE_NUMBER:}
 
-  # NOVO (Fase 2A). Capability token de aprovação de cadastro.
-  approval:
-    token-expiration-hours: ${APPROVAL_TOKEN_EXPIRATION_HOURS:48}
-    # Necessário para montar os links absolutos de accept/reject enviados
-    # ao WhatsApp da dona. Em produção precisa ser a URL real do Render.
-    base-url: ${APP_BASE_URL:http://localhost:8080}
+  # NOVO. Primeira conta OWNER — criada de forma idempotente no startup
+  # (ver OwnerSeeder) se ainda não existir nenhum usuário com role OWNER.
+  # Sem default de propósito: se não configuradas, o seeder loga um aviso
+  # e não cria nada, sem impedir o boot da aplicação.
+  owner:
+    email: ${OWNER_EMAIL:}
+    password: ${OWNER_PASSWORD:}
+    name: ${OWNER_NAME:Proprietária}
 
-# NOVO (Fase 2A). Sem default para o secret — mesmo padrão de MONGODB_URI:
+# Sem default para o secret — mesmo padrão de MONGODB_URI:
 # obrigatório em qualquer ambiente, nunca hardcoded.
 jwt:
   secret: ${JWT_SECRET}
