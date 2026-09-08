@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * Ambos os endpoints são públicos por natureza — não existe usuário
  * autenticado antes de se cadastrar ou de logar (ver SecurityConfig). A
- * aprovação em si não passa por este controller — ela acontece via link do
- * WhatsApp, tratado por UserApprovalController.
+ * aprovação em si não passa por este controller — é uma ação administrativa
+ * de um usuário OWNER (ver AdminUserController).
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -35,7 +35,7 @@ public class AuthController {
     private final AuthenticateUserUseCase authenticateUserUseCase;
 
     @PostMapping("/register")
-    @Operation(summary = "Cadastra um novo usuário do Dashboard — nasce sempre PENDING, aguardando aprovação da proprietária")
+    @Operation(summary = "Cadastra um novo usuário do Dashboard — nasce sempre PENDING, aguardando aprovação de um OWNER")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         UserResponse response = registerUserUseCase.execute(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
