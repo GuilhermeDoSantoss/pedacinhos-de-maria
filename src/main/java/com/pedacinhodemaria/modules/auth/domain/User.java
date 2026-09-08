@@ -12,13 +12,17 @@ import java.time.Instant;
 
 /**
  * Usuário do Kitchen Dashboard. Diferente do Customer App (que nunca exige
- * login — ver ADR no README), o painel da cozinha passa a exigir conta
- * aprovada pela proprietária antes de qualquer acesso (fases futuras).
+ * login — ver ADR no README), o painel da cozinha exige conta aprovada
+ * antes de qualquer acesso.
  *
  * Nenhum usuário nasce OWNER por autocadastro — role aqui é sempre KITCHEN
  * (ver RegisterUserUseCase). A conta OWNER inicial é criada por um
- * mecanismo separado, fora deste fluxo público (fase futura, item 9 do
- * planejamento).
+ * mecanismo separado (seeder idempotente via OWNER_EMAIL/OWNER_PASSWORD),
+ * fora deste fluxo público.
+ *
+ * A aprovação de um cadastro PENDING é feita dentro do próprio sistema, por
+ * um usuário OWNER autenticado (ver ApproveUserUseCase/RejectUserUseCase) —
+ * não depende mais de nenhuma integração externa.
  */
 @Document(collection = "users")
 @Getter
@@ -46,25 +50,14 @@ public class User {
     private UserRole role;
 
     /**
-     * Todo cadastro nasce PENDING — nunca APPROVED diretamente. A
-     * aprovação da proprietária é sempre um passo manual e separado (fase
-     * futura), nunca automática no registro.
+     * Todo cadastro público nasce PENDING — nunca APPROVED diretamente. A
+     * transição para APPROVED/REJECTED é sempre uma ação manual de um
+     * usuário OWNER autenticado (ver ApproveUserUseCase/RejectUserUseCase),
+     * nunca automática no registro.
      */
     private UserStatus status;
 
     private Instant createdAt;
 
     private Instant updatedAt;
-
-    /**
-     * NOVO (Fase 2A). Hash SHA-256 do capability token de aprovação enviado
-     * à dona via WhatsApp — nunca o token bruto (ver ApprovalTokenGenerator).
-     * Nulo fora de uma solicitação de aprovação em aberto: começa nulo antes
-     * do primeiro envio e volta a nulo assim que o token é consumido
-     * (single-use, ver ProcessUserApprovalUseCase).
-     */
-    private String approvalTokenHash;
-
-    /** Expiração do token acima. Nulo pelo mesmo motivo de approvalTokenHash. */
-    private Instant approvalTokenExpiresAt;
 }
