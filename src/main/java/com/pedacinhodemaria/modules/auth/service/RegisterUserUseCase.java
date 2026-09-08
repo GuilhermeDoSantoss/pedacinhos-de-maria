@@ -18,10 +18,12 @@ import java.time.Instant;
  * Orquestra o autocadastro de um usuário do Kitchen Dashboard.
  *
  * Regra de negócio central: todo cadastro nasce PENDING e com role KITCHEN,
- * sem exceção — a promoção para OWNER ou a aprovação para APPROVED nunca
- * acontecem aqui, são decisões manuais da proprietária implementadas em
- * fases futuras (ApproveUserUseCase/RejectUserUseCase, mecanismo de OWNER
- * inicial). Este Use Case só sabe criar a conta em estado de espera.
+ * sem exceção — role nunca vem do request (RegisterRequest não tem esse
+ * campo), então não existe forma de o cliente se autopromover a OWNER. A
+ * aprovação para APPROVED é sempre uma decisão manual de um usuário OWNER
+ * autenticado, feita dentro do próprio sistema (ver ApproveUserUseCase) —
+ * não depende mais de nenhuma notificação externa. Este Use Case só sabe
+ * criar a conta em estado de espera.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,7 +32,6 @@ public class RegisterUserUseCase {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final SendApprovalRequestWhatsAppMessageUseCase sendApprovalRequestWhatsAppMessageUseCase;
 
     public UserResponse execute(RegisterRequest request) {
         // Normalização de e-mail (trim + lowercase) antes de checar
@@ -55,14 +56,7 @@ public class RegisterUserUseCase {
                 .build();
 
         User saved = userRepository.save(user);
-        log.info("Novo cadastro no Kitchen Dashboard: {} — aguardando aprovação", saved.getEmail());
-
-        // NOVO (Fase 2A): gera o capability token de aprovação e notifica a
-        // proprietária via WhatsApp, reaproveitando o mesmo Port/Adapter de
-        // SendOrderReadyWhatsAppMessageUseCase. Se o WhatsApp não estiver
-        // configurado ou falhar, o cadastro NÃO é revertido — o usuário
-        // continua PENDING normalmente (ver SendApprovalRequestWhatsAppMessageUseCase).
-        sendApprovalRequestWhatsAppMessageUseCase.execute(saved);
+        log.info("Novo cadastro no Kitchen Dashboard: {} — aguardando aprovação de um OWNER", saved.getEmail());
 
         return toResponse(saved);
     }
