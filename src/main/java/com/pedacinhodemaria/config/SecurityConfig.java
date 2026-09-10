@@ -1,6 +1,7 @@
 package com.pedacinhodemaria.config;
 
 import com.pedacinhodemaria.modules.auth.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,8 +30,8 @@ import java.util.List;
  *     nunca faz login (decisão de produto inalterada).
  *  2. Cadastro e login são públicos por natureza (não existe usuário
  *     autenticado antes de se cadastrar/logar).
- *  3. /api/v1/kitchen/** continua público nesta fase (ver decisão logo
- *     abaixo) — exceto o único endpoint já protegido por JWT+role.
+ *  3. /api/v1/kitchen/** exige JWT + role KITCHEN ou OWNER (Fase 3) —
+ *     mesma exigência do endpoint de whatsapp-ready-message.
  *  4. CSRF desabilitado — API stateless, sem sessão de cookie.
  *  5. Headers de segurança básicos continuam ativos.
  *  6. Toda rota que ainda não existe fica bloqueada por padrão (denyAll).
@@ -55,6 +57,32 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // CORRIGIDO: sem isso, o AnonymousAuthenticationFilter padrão do
+                // Spring Security preenche o SecurityContext com um
+                // AnonymousAuthenticationToken para toda requisição sem JWT — o
+                // que faz o AuthorizationFilter tratar "sem token" como
+                // "autenticado, mas sem a role certa" (AccessDeniedException →
+                // 403), em vez de "não autenticado" (AuthenticationException →
+                // 401). Essa era a causa raiz real do bug relatado: os 4 testes
+                // que esperavam 401 para ausência de JWT recebiam 403. Rotas
+                // permitAll não são afetadas — elas nunca dependem de haver ou
+                // não uma Authentication no contexto.
+                .anonymous(AbstractHttpConfigurer::disable)
+                // CORRIGIDO: AuthenticationEntryPoint explícito, para não
+                // depender do fallback padrão do Spring Security (que, sem
+                // formLogin()/httpBasic() configurados, pode não garantir 401
+                // de forma explícita). Corpo mínimo, sem reaproveitar o
+                // ApiError do GlobalExceptionHandler aqui de propósito — filtros
+                // de segurança rodam antes do Spring MVC, fora do alcance do
+                // @RestControllerAdvice.
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Autenticação necessária\"}");
+                        })
+                )
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
                         .contentTypeOptions(contentTypeOptions -> {})
@@ -77,14 +105,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/*/whatsapp-ready-message").hasAnyRole("KITCHEN", "OWNER")
                         // Cliente: criar pedido, consultar o próprio pedido, política de horário.
                         .requestMatchers("/api/v1/orders/**").permitAll()
-                        // Decisão confirmada: /kitchen/** continua público por ora (o
-                        // próprio KitchenOrderController já documentava isso como
-                        // decisão de produto) — protegê-lo agora quebraria o Dashboard
-                        // em produção, já que a Fase 2B (frontend com login) ainda não
-                        // existe. Único endpoint de cozinha protegido nesta fase é
-                        // whatsapp-ready-message acima, que já tinha sido sinalizado
-                        // no próprio código como "o primeiro a proteger".
-                        .requestMatchers("/api/v1/kitchen/**").permitAll()
+                        // Fase 3: /kitchen/** deixou de ser público — a razão de
+                        // deixá-lo público (dashboard sem login ainda) não existe
+                        // mais desde a Fase 2B. Mesma role já usada em
+                        // whatsapp-ready-message acima.
+                        .requestMatchers("/api/v1/kitchen/**").hasAnyRole("KITCHEN", "OWNER")
                         // Sem isso, POST /api/v1/auth/register caía no anyRequest().denyAll()
                         // abaixo e retornava 403 antes mesmo de chegar no AuthController.
                         // Restrito a POST de propósito: não há motivo pra GET/PUT/DELETE.
@@ -136,10 +161,28 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * CORRIGIDO (Fase 3 — achado da auditoria Fases 1–3): antes deste
+     * método ignorava completamente o campo `allowedOrigins` injetado
+     * acima e liberava "*" sempre, independente de app.cors.allowed-origins
+     * / CORS_ALLOWED_ORIGINS. Agora a lista configurada é a fonte real de
+     * verdade — única fonte, sem domínio hardcoded aqui no Java (todos os
+     * domínios reais vivem em application.yml, ver comentário lá).
+     *
+     * Métodos e headers permanecem "*" de propósito: restringi-los exigiria
+     * mapear TODOS os verbos/headers realmente usados por cada endpoint do
+     * projeto (incluindo módulos que nunca vi o código, como gestão de
+     * cardápio/side-dishes/extras/drinks) — o risco de quebrar algo que não
+     * tenho visibilidade é maior que o ganho de segurança aqui, já que a
+     * origem (o wildcard que a auditoria realmente apontou como bug) é o
+     * controle que importa: sem credentials habilitado, um método/header
+     * liberado de mais não é explorável por uma origem que já não passou
+     * pela checagem de allowedOrigins acima.
+     */
     private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("*"));
         configuration.setAllowedHeaders(List.of("*"));
 

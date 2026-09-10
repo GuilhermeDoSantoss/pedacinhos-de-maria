@@ -9,7 +9,7 @@ spring:
       # propósito. Não há mais um MongoDB local de fallback: o valor precisa
       # vir de MONGODB_URI (string de conexão do Atlas, formato
       # mongodb+srv://...) em qualquer ambiente que rodar esta aplicação.
-      uri: ${MONGODB_URI}
+      uri: mongodb+srv://guilhermedevsoft_db_user:5fPN4EuKAD0PNIue@cluster0.mux9krh.mongodb.net/pensao-pedacinhos-de-maria?retryWrites=true&w=majority&appName=Cluster0
       auto-index-creation: false # índices são geridos explicitamente por MongoIndexInitializer
 
 server:

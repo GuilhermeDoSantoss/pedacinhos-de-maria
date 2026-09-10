@@ -2,29 +2,38 @@ import { CONFIG } from '../config.js';
 import { authHeader } from '../auth/session.js';
 
 /**
- * Continua sem autenticação — decisão de produto preservada da Fase 2A:
- * /api/v1/kitchen/** segue público nesta fase (ver SecurityConfig e o
- * próprio KitchenOrderController, que já documentava isso).
+ * Fase 3: /api/v1/kitchen/** deixou de ser público — precisa de JWT com
+ * role KITCHEN/OWNER (ver SecurityConfig). `.status` no erro segue o mesmo
+ * padrão já usado em sendReadyWhatsAppMessage, pra dashboard.js tratar
+ * 401/403 de forma uniforme nos três endpoints.
  */
 export async function fetchActiveOrders() {
-    const response = await fetch(`${CONFIG.API_BASE_URL}/kitchen/orders`);
+    const response = await fetch(`${CONFIG.API_BASE_URL}/kitchen/orders`, {
+        headers: { ...authHeader() },
+    });
+
     if (!response.ok) {
-        throw new Error(`Falha ao carregar pedidos (status ${response.status})`);
+        const error = new Error(`Falha ao carregar pedidos (status ${response.status})`);
+        error.status = response.status;
+        throw error;
     }
+
     return response.json();
 }
 
-/** Também continua público — mesma decisão acima. */
+/** Também protegido na Fase 3 — mesma role exigida acima. */
 export async function updateOrderStatus(orderCode, newStatus) {
     const response = await fetch(`${CONFIG.API_BASE_URL}/kitchen/orders/${orderCode}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ newStatus }),
     });
 
     if (!response.ok) {
-        const apiError = await response.json();
-        throw new Error(apiError.message || 'Falha ao atualizar status do pedido');
+        const apiError = await response.json().catch(() => null);
+        const error = new Error(apiError?.message || 'Falha ao atualizar status do pedido');
+        error.status = response.status;
+        throw error;
     }
 
     return response.json();

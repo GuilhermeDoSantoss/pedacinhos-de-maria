@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedacinhos de Maria - Peça, acompanhe e gerencie em um só lugar</title>
+    <meta name="description" content="Pedacinhos de Maria: faça seu pedido online, acompanhe o preparo em tempo real e gerencie a operação da cozinha e da equipe em um único sistema.">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="site-header">
+    <span class="site-header__logo">Pedacinhos de Maria</span>
+
+    <button class="menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Abrir menu">
+        <span class="menu-toggle__bar"></span>
+    </button>
+
+    <nav class="site-header__nav" id="site-nav">
+        <a href="#sobre">Sobre</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#recursos">Recursos</a>
+        <a href="#contato">Contato</a>
+        <a class="site-header__cta" href="#acessos">Entrar</a>
+    </nav>
+</header>
+
+<main id="conteudo">
+
+    <section class="hero">
+        <div class="hero__content">
+            <p class="hero__eyebrow">Sistema de pedidos do Pedacinhos de Maria</p>
+            <h1 class="hero__title">Do pedido ao prato,<br><em>tudo em um só lugar</em></h1>
+            <p class="hero__subtitle">
+                Peça o que quiser em poucos cliques, acompanhe o preparo em tempo real
+                e receba um aviso assim que estiver pronto para retirar.
+            </p>
+            <div class="hero__ctas">
+                <a class="btn-primary" data-link="customer" href="#">Fazer pedido</a>
+                <a class="btn-secondary" href="#como-funciona">Ver como funciona</a>
+            </div>
+        </div>
+
+        <div class="hero__visual" aria-hidden="true">
+            <svg viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="110" cy="130" r="78" stroke="#4A362F" stroke-width="1.5" stroke-dasharray="4 6"/>
+                <ellipse cx="110" cy="140" rx="60" ry="16" stroke="#E08579" stroke-width="3"/>
+                <path d="M50 140 A60 40 0 0 0 170 140" stroke="#E08579" stroke-width="3" stroke-linecap="round"/>
+                <path d="M88 78c-6 10-6 16 0 24" stroke="#B39C94" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M110 70c-6 10-6 16 0 24" stroke="#B39C94" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M132 78c-6 10-6 16 0 24" stroke="#B39C94" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+        </div>
+    </section>
+
+    <section class="access" id="acessos" aria-label="Escolha como deseja acessar">
+        <div class="access__header">
+            <h2 class="access__title">Três caminhos, um só sistema</h2>
+            <p class="access__subtitle">Cada área foi pensada para quem vai usá-la - cliente, cozinha ou administração.</p>
+        </div>
+
+        <div class="access__grid">
+            <article class="access-card" style="--card-accent: var(--color-accent-customer)">
+                <svg class="access-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+                    <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/>
+                </svg>
+                <h3 class="access-card__title">Cliente</h3>
+                <p class="access-card__description">Consulte o cardápio, monte seu pedido e acompanhe o status até a retirada.</p>
+                <a class="access-card__link" data-link="customer" href="#">Fazer pedido</a>
+            </article>
+
+            <article class="access-card" style="--card-accent: var(--color-accent-kitchen)">
+                <svg class="access-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 11V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                    <rect x="6" y="11" width="12" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
+                    <path d="M9 6c-2 2-2 3 0 5M12 5c-2 2-2 3 0 5M15 6c-2 2-2 3 0 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+                <h3 class="access-card__title">Cozinha</h3>
+                <p class="access-card__description">Visualize os pedidos em tempo real e gerencie cada etapa da operação.</p>
+                <a class="access-card__link" data-link="kitchen" href="#">Acessar cozinha</a>
+            </article>
+
+            <article class="access-card" style="--card-accent: var(--color-accent-admin)">
+                <svg class="access-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h3 class="access-card__title">Administração</h3>
+                <p class="access-card__description">Gerencie o acesso da equipe e as operações administrativas do sistema.</p>
+                <a class="access-card__link" data-link="admin" href="#">Acessar administração</a>
+            </article>
+        </div>
+    </section>
+
+    <section class="section" id="sobre">
+        <h2 class="section__title">Sobre</h2>
+        <p class="section__text">
+            O Pedacinhos de Maria é um sistema digital criado para tornar o dia a dia
+            do restaurante mais simples do momento em que o cliente faz o pedido até
+            a hora em que ele sai pronto da cozinha. Uma solução pensada para melhorar
+            a experiência de quem pede e a organização de quem prepara.
+        </p>
+    </section>
+
+    <section class="section" id="como-funciona">
+        <h2 class="section__title">Como funciona</h2>
+        <p class="section__text">O pedido passa por um fluxo simples e transparente, do início ao fim.</p>
+
+        <ol class="flow">
+            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Cliente faz o pedido</span></li>
+            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Cozinha recebe em tempo real</span></li>
+            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Pedido é preparado</span></li>
+            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Cliente é avisado e retira</span></li>
+        </ol>
+    </section>
+
+    <section class="section" id="recursos">
+        <h2 class="section__title">Recursos</h2>
+        <ul class="features__list">
+            <li class="features__item">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12.5l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Pedido digital, sem precisar ligar ou esperar na fila</span>
+            </li>
+            <li class="features__item">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12.5l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Acompanhamento do status do pedido em tempo real</span>
+            </li>
+            <li class="features__item">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12.5l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Aviso pelo WhatsApp assim que o pedido fica pronto</span>
+            </li>
+            <li class="features__item">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12.5l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Painel dedicado para a operação da cozinha</span>
+            </li>
+            <li class="features__item">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12.5l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Controle de acesso da equipe, com aprovação administrativa</span>
+            </li>
+            <li class="features__item">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12.5l2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Arquitetura preparada para crescer junto com o negócio</span>
+            </li>
+        </ul>
+    </section>
+
+    <section class="section" id="contato">
+        <h2 class="section__title">Contato</h2>
+        <p class="section__text">
+            Já fez seu pedido? Combine qualquer detalhe direto pelo canal de
+            atendimento indicado durante a finalização do pedido.
+        </p>
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <div>
+            <p class="site-footer__brand">Pedacinhos de Maria</p>
+            <p class="site-footer__tagline">Do pedido ao prato, em um só sistema.</p>
+        </div>
+        <nav class="site-footer__nav" aria-label="Links do rodapé">
+            <a href="#sobre">Sobre</a>
+            <a href="#como-funciona">Como funciona</a>
+            <a data-link="customer" href="#">Fazer pedido</a>
+            <a data-link="kitchen" href="#">Área da cozinha</a>
+            <a data-link="admin" href="#">Administração</a>
+        </nav>
+    </div>
+    <p class="site-footer__bottom">Pedacinhos de Maria - feito com amor e carinho.</p>
+</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>

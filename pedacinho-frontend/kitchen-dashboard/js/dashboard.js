@@ -66,11 +66,35 @@ async function startShift() {
     setInterval(() => columnManager.checkAutoReadyTransitions(), AUTO_READY_CHECK_INTERVAL_MS);
 }
 
+/**
+ * Fase 3: /api/v1/kitchen/** também passou a exigir JWT — mesmo tratamento
+ * de 401/403 que já existia só para whatsapp-ready-message (Fase 2B),
+ * agora extraído pra um único lugar em vez de duplicado nos 3 pontos de
+ * chamada.
+ *
+ * @returns {boolean} true se o erro era 401/403 e já foi tratado (quem
+ * chamou não precisa fazer mais nada); false se é outro tipo de erro.
+ */
+function handleAuthError(err) {
+    if (err.status === 401) {
+        alert('Sua sessão expirou. Faça login novamente.');
+        clearSession();
+        window.location.reload();
+        return true;
+    }
+    if (err.status === 403) {
+        alert('Você não tem permissão para essa ação.');
+        return true;
+    }
+    return false;
+}
+
 async function loadInitialOrders() {
     try {
         const orders = await fetchActiveOrders();
         columnManager.init(orders);
     } catch (err) {
+        if (handleAuthError(err)) return;
         console.error('Falha ao carregar pedidos ativos:', err);
         qs('#board-error').textContent = 'Não foi possível carregar os pedidos. Recarregue a página.';
         show(qs('#board-error'));
@@ -85,6 +109,7 @@ async function handleAdvance(orderCode, nextStatus) {
         // do WebSocket abaixo move o ticket. Mesmo caminho para esta e para
         // qualquer outra tela de cozinha conectada, sem duplicar lógica.
     } catch (err) {
+        if (handleAuthError(err)) return;
         console.error('Falha ao atualizar status:', err);
         alert('Não foi possível atualizar o pedido. Tente novamente.');
     }
@@ -92,24 +117,14 @@ async function handleAdvance(orderCode, nextStatus) {
 
 /**
  * Chamado quando o funcionário clica no telefone do cliente no ticket —
- * dispara a mensagem de WhatsApp via backend. NOVO (Fase 2B): este é o
- * único endpoint protegido por JWT (ver SecurityConfig, Fase 2A) — trata
- * 401 (sessão expirada/inválida) e 403 (sem permissão) especificamente.
+ * dispara a mensagem de WhatsApp via backend. Protegido por JWT desde a
+ * Fase 2A.
  */
 async function handleNotifyReady(orderCode) {
     try {
         await sendReadyWhatsAppMessage(orderCode);
     } catch (err) {
-        if (err.status === 401) {
-            alert('Sua sessão expirou. Faça login novamente.');
-            clearSession();
-            window.location.reload();
-            return;
-        }
-        if (err.status === 403) {
-            alert('Você não tem permissão para essa ação.');
-            return;
-        }
+        if (handleAuthError(err)) return;
         console.error('Falha ao enviar mensagem de WhatsApp:', err);
         alert('Não foi possível enviar a mensagem de WhatsApp. Tente novamente.');
     }

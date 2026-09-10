@@ -14,11 +14,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Endpoints consumidos pelo Kitchen Dashboard. Públicos, sem autenticação
- * (decisão de produto da consolidação Fases 1+2 — ver ADR em SecurityConfig)
- * — mantidos num controller próprio, separado de OrderController, porque a
- * audiência é diferente (cozinha vs. cliente final) mesmo sem diferença de
- * autorização hoje; separa também o que evolui junto no futuro.
+ * Endpoints consumidos pelo Kitchen Dashboard. Fase 3: exigem JWT válido
+ * com role KITCHEN ou OWNER (ver SecurityConfig) — antes eram públicos por
+ * decisão temporária da Fase 2A, que deixou de valer assim que o Dashboard
+ * ganhou login (Fase 2B). Continuam num controller próprio, separado de
+ * OrderController, porque a audiência é diferente (cozinha vs. cliente
+ * final) — separa também o que evolui junto no futuro.
  */
 @RestController
 @RequestMapping("/api/v1/kitchen/orders")
