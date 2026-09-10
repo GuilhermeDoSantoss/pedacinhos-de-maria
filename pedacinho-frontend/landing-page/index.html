@@ -59,21 +59,23 @@
     <section class="access" id="acessos" aria-label="Escolha como deseja acessar">
         <div class="access__header">
             <h2 class="access__title">Três caminhos, um só sistema</h2>
-            <p class="access__subtitle">Cada área foi pensada para quem vai usá-la - cliente, cozinha ou administração.</p>
+            <p class="access__subtitle">Cada área foi pensada para quem vai usá-la — cliente, cozinha ou administração.</p>
         </div>
 
         <div class="access__grid">
             <article class="access-card" style="--card-accent: var(--color-accent-customer)">
+                <span class="access-card__badge access-card__badge--public">Acesso público</span>
                 <svg class="access-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
                     <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/>
                 </svg>
-                <h3 class="access-card__title">Cliente</h3>
+                <h3 class="access-card__title">Clientes</h3>
                 <p class="access-card__description">Consulte o cardápio, monte seu pedido e acompanhe o status até a retirada.</p>
                 <a class="access-card__link" data-link="customer" href="#">Fazer pedido</a>
             </article>
 
             <article class="access-card" style="--card-accent: var(--color-accent-kitchen)">
+                <span class="access-card__badge">Acesso restrito</span>
                 <svg class="access-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M7 11V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
                     <rect x="6" y="11" width="12" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/>
@@ -85,6 +87,7 @@
             </article>
 
             <article class="access-card" style="--card-accent: var(--color-accent-admin)">
+                <span class="access-card__badge">Acesso restrito</span>
                 <svg class="access-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
                     <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -97,24 +100,29 @@
     </section>
 
     <section class="section" id="sobre">
-        <h2 class="section__title">Sobre</h2>
+        <h2 class="section__title">Quem somos</h2>
         <p class="section__text">
-            O Pedacinhos de Maria é um sistema digital criado para tornar o dia a dia
-            do restaurante mais simples do momento em que o cliente faz o pedido até
-            a hora em que ele sai pronto da cozinha. Uma solução pensada para melhorar
-            a experiência de quem pede e a organização de quem prepara.
+            Somos um restaurante de família administrado e trabalhado por quem faz
+            parte dela, há dois anos. Cada prato sai da nossa cozinha feito com amor
+            e carinho, com atenção à qualidade e a um atendimento próximo e familiar.
+            Crescemos um pouco mais a cada dia, e é sempre um prazer receber você.
         </p>
     </section>
 
     <section class="section" id="como-funciona">
         <h2 class="section__title">Como funciona</h2>
-        <p class="section__text">O pedido passa por um fluxo simples e transparente, do início ao fim.</p>
+        <p class="section__text">Do cardápio até a retirada, o pedido passa por um fluxo simples e transparente.</p>
 
-        <ol class="flow">
-            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Cliente faz o pedido</span></li>
-            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Cozinha recebe em tempo real</span></li>
-            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Pedido é preparado</span></li>
-            <li class="flow__step"><span class="flow__number" aria-hidden="true"></span><span class="flow__label">Cliente é avisado e retira</span></li>
+        <ol class="timeline">
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">Você acessa o cardápio</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">Escolhe os pratos e acompanhamentos</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">Informa os dados necessários</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">O pedido é enviado</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">A cozinha recebe em tempo real</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">O pedido é preparado com cuidado</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">O status é atualizado</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">Você acompanha o andamento</span></li>
+            <li class="timeline__step"><span class="timeline__number" aria-hidden="true"></span><span class="timeline__label">Você é avisado assim que estiver pronto</span></li>
         </ol>
     </section>
 
