@@ -12,6 +12,10 @@
  * O backend continua usando Spring + STOMP de verdade (com broker relay como
  * caminho de upgrade futuro) — só o cliente é artesanal, não o protocolo.
  *
+ * Esta mesma classe é usada pelo Customer App, sem nenhuma mudança — o
+ * parâmetro `connectHeaders` é opcional (default {}) e só o Kitchen
+ * Dashboard o utiliza, para enviar Authorization no CONNECT.
+ *
  * Formato de um frame STOMP:
  *   COMMAND
  *   header1:value1
@@ -32,6 +36,7 @@ export class StompClient {
     #reconnectAttempt = 0;
     #reconnectTimer = null;
     #manuallyClosed = false;
+    #connectHeaders;
 
     constructor(url) {
         this.#url = url;
@@ -42,9 +47,14 @@ export class StompClient {
      * conexão STOMP é estabelecida — inclusive após reconexões automáticas —
      * porque é responsabilidade do chamador reassinar os tópicos necessários
      * a cada `onReady` (ver connectAndSubscribe mais abaixo, que já cobre isso).
+     *
+     * `connectHeaders` (opcional) é chamado a cada tentativa de conexão —
+     * não só a primeira — para que um `Authorization` baseado em token
+     * sempre reflita a sessão atual, mesmo depois de uma reconexão automática.
      */
-    connect(onReady, onError) {
+    connect(onReady, onError, connectHeaders = {}) {
         this.#manuallyClosed = false;
+        this.#connectHeaders = connectHeaders;
         this.#openSocket(onReady, onError);
     }
 
@@ -52,7 +62,21 @@ export class StompClient {
         this.#socket = new WebSocket(this.#url);
 
         this.#socket.onopen = () => {
-            this.#sendFrame('CONNECT', { 'accept-version': '1.2', host: 'localhost' });
+            // Header STOMP 'host' é metadado de virtual-hosting do protocolo,
+            // não afeta a URL de conexão real (essa já vem por parâmetro no
+            // construtor). O broker simples do Spring (ver WebSocketConfig)
+            // não valida esse valor, mas usar o hostname real da página em
+            // vez de 'localhost' fixo evita qualquer confusão futura ao
+            // inspecionar frames STOMP no DevTools em produção.
+            const headers = typeof this.#connectHeaders === 'function'
+                ? this.#connectHeaders()
+                : this.#connectHeaders;
+
+            this.#sendFrame('CONNECT', {
+                'accept-version': '1.2',
+                host: window.location.hostname,
+                ...headers,
+            });
         };
 
         this.#socket.onmessage = (event) => this.#handleFrame(event.data, onReady);

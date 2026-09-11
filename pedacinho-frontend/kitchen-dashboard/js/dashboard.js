@@ -3,7 +3,7 @@ import { qs, show, hide } from './utils/domHelpers.js';
 import { fetchActiveOrders, updateOrderStatus, sendReadyWhatsAppMessage } from './api/ordersApi.js';
 import { ColumnManager } from './modules/columnManager.js';
 import { StompClient } from './modules/wsClient.js';
-import { hasValidSession, clearSession } from './auth/session.js';
+import { hasValidSession, clearSession, authHeader } from './auth/session.js';
 import { initAuthGate } from './auth/authGate.js';
 
 // Intervalo de verificação da automação de 35 minutos — não precisa ser tão
@@ -133,9 +133,13 @@ async function handleNotifyReady(orderCode) {
 function connectWebSocket() {
     stompClient = new StompClient(CONFIG.WS_URL);
 
-    stompClient.connect(() => {
-        stompClient.subscribe('/topic/kitchen-orders', handleKitchenEvent);
-    });
+    stompClient.connect(
+        () => {
+            stompClient.subscribe('/topic/kitchen-orders', handleKitchenEvent);
+        },
+        (err) => console.error('Falha na conexão WebSocket:', err),
+        authHeader,
+    );
 }
 
 function handleKitchenEvent(message) {
