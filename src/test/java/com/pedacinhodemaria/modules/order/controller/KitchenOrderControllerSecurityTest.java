@@ -10,6 +10,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -59,11 +60,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class KitchenOrderControllerSecurityTest {
 
-    // Mesmo valor de src/test/resources/application-test.yml — duplicado
-    // aqui de propósito para montar tokens "de fora" (role fabricada) sem
-    // expor a signing key privada de JwtService. Nunca tem relação com o
-    // segredo real de produção (ver application-test.yml para o porquê).
-    private static final String TEST_SECRET = "mvn-clean-test-chave-exclusiva-de-teste-nunca-usar-fora-de-testes-automatizados";
+    // Injetado do mesmo application-test.yml que o JwtService real deste
+    // contexto usa (@Value também é resolvido em campos da própria classe
+    // de teste pelo Spring TestContext Framework). Antes este valor
+    // existia como uma string literal duplicada aqui, manualmente
+    // sincronizada com application-test.yml — qualquer diferença entre a
+    // cópia e o valor real de jwt.secret (mesmo um espaço a mais) faz a
+    // assinatura HMAC não bater, JwtService.parseAndValidate lança
+    // SignatureException, JwtAuthenticationFilter descarta a autenticação
+    // silenciosamente (ver catch de JwtException), e a requisição chega a
+    // authorizeHttpRequests sem nenhuma Authentication — daí o 401 em vez
+    // do 403 esperado. Injetar em vez de duplicar elimina esse risco de
+    // drift de vez, sem expor a chave em produção (nunca sai do processo
+    // de teste).
+    @Value("${jwt.secret}")
+    private String testSecret;
 
     @Autowired
     private MockMvc mockMvc;
@@ -161,7 +172,7 @@ class KitchenOrderControllerSecurityTest {
     }
 
     private String tokenWithRawRole(String rawRole) {
-        SecretKey key = Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8));
+        SecretKey key = Keys.hmacShaKeyFor(testSecret.getBytes(StandardCharsets.UTF_8));
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject("teste@exemplo.com")

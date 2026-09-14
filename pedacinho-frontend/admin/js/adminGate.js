@@ -1,6 +1,6 @@
-import { qs, show, hide } from '../utils/domHelpers.js';
-import { login, AuthApiError } from '../auth/authApi.js';
-import { saveSession } from '../auth/session.js';
+import { qs, show, hide } from './utils/domHelpers.js';
+import { login, AuthApiError } from './authApi.js';
+import { saveSession } from './session.js';
 
 export function initAdminGate(onAuthenticated) {
     const form = qs('#login-form');

@@ -1,7 +1,7 @@
 import { qs, show, hide } from './utils/domHelpers.js';
-import { hasValidSession, clearSession } from './auth/session.js';
-import { initAdminGate } from './admin/adminGate.js';
-import { initUsersView } from './admin/usersView.js';
+import { hasValidSession, clearSession } from './session.js';
+import { initAdminGate } from './adminGate.js';
+import { initUsersView } from './usersView.js';
 
 function bootstrap() {
     if (hasValidSession()) {

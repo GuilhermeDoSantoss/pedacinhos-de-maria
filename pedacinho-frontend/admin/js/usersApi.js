@@ -1,5 +1,5 @@
-import { CONFIG } from '../config.js';
-import { authHeader } from '../auth/session.js';
+import { CONFIG } from './config.js';
+import { authHeader } from './session.js';
 
 export class AdminApiError extends Error {
     constructor(status, body) {

@@ -1,4 +1,4 @@
-import { createElement, formatDate, qs, show, hide } from '../utils/domHelpers.js';
+import { createElement, formatDate, qs, show, hide } from './utils/domHelpers.js';
 import { fetchUsers, approveUser, rejectUser } from './usersApi.js';
 
 const STATUS_LABELS = { PENDING: 'Pendente', APPROVED: 'Aprovado', REJECTED: 'Rejeitado' };
