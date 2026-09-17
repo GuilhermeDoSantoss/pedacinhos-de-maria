@@ -44,6 +44,32 @@ public class JwtService {
                 .compact();
     }
 
+    /**
+     * INSTRUMENTAÇÃO/OTIMIZAÇÃO (aquecimento pós-startup — ver
+     * LoginWarmupRunner): executa o mesmo pipeline de assinatura
+     * (Jwts.builder()...signWith()...compact()) usado por generateToken(),
+     * mas com um subject sintético e uma expiração já vencida no passado —
+     * mesmo que este token vazasse por algum motivo, ele já nasce
+     * inválido/expirado e não é aceito por parseAndValidate() nem por
+     * nenhum fluxo de autorização real. Não usa e-mail nem role de usuário
+     * real, não altera o algoritmo, o secret nem a validade configurada
+     * para tokens reais (generateToken() continua idêntico).
+     *
+     * O valor de retorno nunca é exposto, logado ou devolvido a nenhum
+     * chamador externo — o único propósito é forçar, fora do caminho de
+     * um login real, o carregamento de classes da lib jjwt e do provedor
+     * de criptografia HMAC na primeira vez em que o processo assina algo.
+     */
+    public void warmUp() {
+        Instant expiredAt = Instant.now().minusSeconds(60);
+        Jwts.builder()
+                .subject("internal-warmup")
+                .issuedAt(Date.from(expiredAt.minusSeconds(1)))
+                .expiration(Date.from(expiredAt))
+                .signWith(signingKey)
+                .compact();
+    }
+
     public long getExpirationSeconds() {
         return expirationMs / 1000;
     }
