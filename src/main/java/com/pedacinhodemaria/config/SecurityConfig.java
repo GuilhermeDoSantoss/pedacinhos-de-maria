@@ -1,6 +1,7 @@
 package com.pedacinhodemaria.config;
 
 import com.pedacinhodemaria.modules.auth.security.JwtAuthenticationFilter;
+import com.pedacinhodemaria.modules.auth.security.TimingPasswordEncoder;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -155,10 +156,19 @@ public class SecurityConfig {
      * bean do tipo no projeto; RegisterUserUseCase o injeta por construtor.
      * Fica aqui por ser a classe @Configuration de segurança já existente —
      * não criei uma classe nova só para isso.
+     *
+     * INSTRUMENTAÇÃO TEMPORÁRIA (investigação de lentidão no login): o
+     * PasswordEncoder real continua sendo exatamente
+     * new BCryptPasswordEncoder() — nenhum parâmetro de custo mudou, nenhum
+     * comportamento de encode()/matches() muda. Só envolvemos numa camada
+     * que mede a duração de matches() (ver TimingPasswordEncoder) — a
+     * mesma única chamada que o DaoAuthenticationProvider já fazia antes.
+     * Quando a investigação terminar, reverter para:
+     *   return new BCryptPasswordEncoder();
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new TimingPasswordEncoder(new BCryptPasswordEncoder());
     }
 
     /**
