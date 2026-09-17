@@ -20,35 +20,28 @@ import java.util.UUID;
 /**
  * Aquece, uma única vez logo após o startup, os subsistemas cujo primeiro
  * uso real (Mongo/Atlas, Spring Security/BCrypt, JJWT) se mostrou muito
- * mais lento que os usos seguintes — ver instrumentação AUTH_* e a
- * investigação de lentidão do primeiro login após um restart do processo
- * (Mongo: 710-797ms → 123-196ms; BCrypt: 1101-1202ms → 458-689ms;
- * AuthenticationManager: 3297-3303ms → 582-826ms; JWT: 1803-2299ms → 0ms).
+ * mais lento que os usos seguintes.
+ *
+ *  a versão anterior deste componente usava só AvailabilityChangeEvent/ReadinessState para tentar
+ * impedir tráfego durante o warm-up. Logs reais provaram que isso NÃO
+ * impede o Tomcat/DispatcherServlet de processar requisições reais —
+ * ReadinessState é um sinal informativo, consumido só por
+ * /actuator/health/readiness, para orquestradores externos decidirem se
+ * roteiam tráfego; não é um mecanismo de bloqueio interno. A garantia
+ * real agora vem de TrafficReadinessGate + WarmupGateFilter (ver javadoc
+ * de ambos) — o AvailabilityChangeEvent continua sendo publicado aqui só
+ * para manter /actuator/health/readiness relatando a verdade, não porque
+ * ele impeça tráfego sozinho.
  *
  * Não toca em nenhum usuário real, não gera um JWT que seria aceito como
  * credencial válida (ver JwtService.warmUp() — nasce já expirado), não
  * altera nenhuma coleção do Mongo, e nunca loga senha, hash, token ou
  * segredo.
  *
- * Enquanto o warm-up roda, o estado de readiness da aplicação é mantido em
- * REFUSING_TRAFFIC via ApplicationAvailability (API oficial do Spring
- * Boot). Como a aplicação roda em Docker, o Spring Boot 3.1+ detecta esse
- * ambiente automaticamente e expõe os grupos "liveness"/"readiness" em
- * /actuator/health — o mesmo endpoint usado como healthCheckPath no
- * render.yaml e pelo keep-alive. Durante o warm-up, /actuator/health passa
- * a reportar a aplicação como não pronta; se o Render de fato aguardar
- * esse sinal antes de encaminhar tráfego (comportamento a confirmar em
- * produção — documentado para deploys, não garantido para o "acordar" de
- * uma instância ociosa), o usuário deixa de pagar o custo do aquecimento
- * dentro do próprio login.
- *
  * Falha em qualquer etapa do warm-up NUNCA impede a aplicação de ficar
- * pronta — cada etapa é isolada (uma falhando não impede as demais) e o
- * estado sempre volta para ACCEPTING_TRAFFIC ao final, mesmo que
- * Mongo/Auth/JWT falhem aqui. Este componente é uma otimização, nunca um
- * requisito para a aplicação funcionar: se o warm-up falhar por completo,
- * o primeiro login real simplesmente paga o custo normalmente, como pagava
- * antes deste componente existir.
+ * pronta — cada etapa é isolada e o gate é liberado no finally do método
+ * inteiro, garantindo que a aplicação nunca fique permanentemente
+ * REFUSING_TRAFFIC mesmo se algo inesperado quebrar durante o warm-up.
  */
 @Component
 @RequiredArgsConstructor
@@ -60,23 +53,40 @@ public class LoginWarmupRunner implements ApplicationListener<ApplicationReadyEv
     private final MongoTemplate mongoTemplate;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final TrafficReadinessGate trafficReadinessGate;
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
-        AvailabilityChangeEvent.publish(event.getApplicationContext(), ReadinessState.REFUSING_TRAFFIC);
+        // trafficReadinessGate já nasce fechado (ver TrafficReadinessGate) —
+        // esta linha só deixa explícito no log que o warm-up está
+        // começando com o gate fechado, não é ela quem fecha o gate.
+        log.info("AUTH_READINESS_REFUSING reason=warmup_starting");
         MDC.put("loginId", WARMUP_LOGIN_ID);
         long totalStart = System.nanoTime();
         log.info("AUTH_WARMUP_START");
 
-        runStep("Mongo", this::warmUpMongo);
-        runStep("Security", this::warmUpAuthenticationAndBCrypt);
-        runStep("Jwt", this::warmUpJwt);
+        try {
+            runStep("Mongo", this::warmUpMongo);
+            runStep("Security", this::warmUpAuthenticationAndBCrypt);
+            runStep("Jwt", this::warmUpJwt);
 
-        long totalDurationMs = (System.nanoTime() - totalStart) / 1_000_000;
-        log.info("AUTH_WARMUP_SUCCESS total={}ms", totalDurationMs);
-
-        MDC.remove("loginId");
-        AvailabilityChangeEvent.publish(event.getApplicationContext(), ReadinessState.ACCEPTING_TRAFFIC);
+            long totalDurationMs = (System.nanoTime() - totalStart) / 1_000_000;
+            log.info("AUTH_WARMUP_SUCCESS total={}ms", totalDurationMs);
+        } catch (Exception unexpected) {
+            // runStep já isola a falha de cada etapa individualmente; este
+            // catch é uma rede de segurança adicional para qualquer erro
+            // fora das etapas em si — nunca deve impedir a liberação do
+            // gate no finally abaixo.
+            log.warn("AUTH_WARMUP_FAILURE step=unexpected reason={}", unexpected.getClass().getSimpleName());
+        } finally {
+            MDC.remove("loginId");
+            // GARANTIA CRÍTICA: o gate SEMPRE abre aqui, warm-up tendo
+            // funcionado ou não — a aplicação nunca fica permanentemente
+            // recusando tráfego por causa de uma falha no warm-up.
+            trafficReadinessGate.markReady();
+            log.info("AUTH_READINESS_ACCEPTING");
+            AvailabilityChangeEvent.publish(event.getApplicationContext(), ReadinessState.ACCEPTING_TRAFFIC);
+        }
     }
 
     private void runStep(String stepName, Runnable step) {
@@ -87,13 +97,6 @@ public class LoginWarmupRunner implements ApplicationListener<ApplicationReadyEv
         }
     }
 
-    /**
-     * Comando "ping" nativo do MongoDB — não lê nem escreve nenhuma
-     * coleção, não depende de nenhum documento existir, é a forma padrão
-     * recomendada de verificar/estabelecer conectividade com um cluster.
-     * Força aqui, no startup, o custo de resolução DNS do mongodb+srv://,
-     * handshake TLS e autenticação da primeira conexão do pool.
-     */
     private void warmUpMongo() {
         long start = System.nanoTime();
         mongoTemplate.getDb().runCommand(new Document("ping", 1));
@@ -101,34 +104,6 @@ public class LoginWarmupRunner implements ApplicationListener<ApplicationReadyEv
         log.info("AUTH_WARMUP_MONGO duration={}ms", durationMs);
     }
 
-    /**
-     * Uma tentativa de autenticação com credenciais sintéticas que NUNCA
-     * correspondem a um usuário real (e-mail sob o domínio reservado
-     * .invalid, RFC 2606; senha aleatória descartada). O resultado
-     * esperado e correto é sempre falha (AuthenticationException) — não é
-     * um erro de warm-up, nunca é logado como problema.
-     *
-     * O valor desta chamada: o Spring Security
-     * (AbstractUserDetailsAuthenticationProvider, classe-mãe do
-     * DaoAuthenticationProvider usado por trás do AuthenticationManager)
-     * aplica uma proteção conhecida contra timing attack de enumeração de
-     * usuário — quando o e-mail não existe, ele ainda assim executa
-     * passwordEncoder.encode() (uma vez, cacheado) e
-     * passwordEncoder.matches() contra um hash interno, exatamente para
-     * igualar o tempo de resposta ao de uma tentativa com e-mail
-     * existente. Isso significa que esta chamada aquece de forma real, não
-     * simulada: a consulta ao Mongo (via PedacinhoUserDetailsService,
-     * reaproveitando a conexão já aberta por warmUpMongo), o BCrypt (via
-     * TimingPasswordEncoder — os logs AUTH_USER_LOOKUP_DB e AUTH_BCRYPT já
-     * existentes aparecem aqui com loginId=warmup, o mesmo nome de sempre,
-     * só marcados para não se confundirem com uma tentativa de usuário
-     * real) e o carregamento de classes do próprio
-     * ProviderManager/DaoAuthenticationProvider.
-     *
-     * Nenhum usuário real é consultado, nenhuma sessão é criada (API já é
-     * stateless), nenhum JWT é gerado neste caminho — a execução sempre
-     * termina em exceção antes de chegar a esse ponto do fluxo real.
-     */
     private void warmUpAuthenticationAndBCrypt() {
         long start = System.nanoTime();
         String syntheticEmail = "warmup-" + UUID.randomUUID() + "@internal.invalid";
@@ -138,14 +113,11 @@ public class LoginWarmupRunner implements ApplicationListener<ApplicationReadyEv
                     new UsernamePasswordAuthenticationToken(syntheticEmail, syntheticPassword));
         } catch (AuthenticationException expected) {
             // Resultado esperado e correto — e-mail sintético nunca existe.
-            // Qualquer subtipo de AuthenticationException é aceitável aqui;
-            // o objetivo é exercitar o pipeline, não obter sucesso.
         }
         long durationMs = (System.nanoTime() - start) / 1_000_000;
         log.info("AUTH_WARMUP_SECURITY duration={}ms", durationMs);
     }
 
-    /** Ver JwtService.warmUp() — gera e descarta um token sintético já expirado. */
     private void warmUpJwt() {
         long start = System.nanoTime();
         jwtService.warmUp();
