@@ -12,15 +12,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Bloqueia TODA requisição (exceto /actuator/**) com 503 + Retry-After
- * enquanto TrafficReadinessGate ainda não estiver pronto — ou seja,
- * enquanto LoginWarmupRunner ainda não terminou de aquecer Mongo,
- * Spring Security/BCrypt e JWT.
+ * Bloqueia TODA requisição real com 503 + Retry-After enquanto
+ * TrafficReadinessGate ainda não estiver pronto — ou seja, enquanto
+ * LoginWarmupRunner ainda não terminou de aquecer Mongo, Spring
+ * Security/BCrypt e JWT.
  *
- * /actuator/** é sempre deixado passar, mesmo com o gate fechado, para
- * que /actuator/health continue respondendo com o status real da
- * aplicação — bloquear o próprio health check seria contraproducente
- * tanto para o keep-alive quanto para o healthCheckPath do render.yaml.
+ * Três categorias de requisição atravessam o gate mesmo fechado:
+ *  1. /actuator/** — o health check precisa continuar respondendo com o
+ *     status real da aplicação.
+ *  2. GET /internal/keep-alive — precisa responder assim que o Tomcat
+ *     aceitar conexões, sem esperar o warm-up interno terminar; seu único
+ *     propósito é sinalizar atividade para o Render, não medir prontidão
+ *     do login.
+ *  3. Requisições OPTIONS — são o handshake de CORS preflight do
+ *     navegador, nunca chegam a executar lógica de negócio; bloqueá-las
+ *     com 503 faz o navegador reportar erro de CORS em vez do 503 real,
+ *     sem ganhar nenhuma segurança adicional.
  *
  * Este filtro é registrado com a maior precedência possível
  * (Ordered.HIGHEST_PRECEDENCE, ver WarmupFilterConfig), diretamente no
@@ -33,13 +40,20 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class WarmupGateFilter extends OncePerRequestFilter {
 
+    private static final String KEEP_ALIVE_PATH = "/internal/keep-alive";
+
     private final TrafficReadinessGate gate;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                      @NonNull HttpServletResponse response,
                                      @NonNull FilterChain filterChain) throws ServletException, IOException {
-        if (request.getRequestURI().startsWith("/actuator")) {
+        boolean isPreflight = "OPTIONS".equalsIgnoreCase(request.getMethod());
+        boolean isExempt = request.getRequestURI().startsWith("/actuator")
+                || request.getRequestURI().equals(KEEP_ALIVE_PATH)
+                || isPreflight;
+
+        if (isExempt) {
             filterChain.doFilter(request, response);
             return;
         }

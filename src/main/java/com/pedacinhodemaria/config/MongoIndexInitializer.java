@@ -43,14 +43,27 @@ public class MongoIndexInitializer implements ApplicationRunner {
     @Value("${app.order-retention-days}")
     private int orderRetentionDays;
 
+    /**
+     * INSTRUMENTAÇÃO TEMPORÁRIA (investigação de cold start): mede a
+     * duração total das 6 operações abaixo. Nenhuma delas mudou — mesma
+     * ordem, mesmos índices, mesmas coleções. Só queremos saber se este
+     * runner é ou não um contribuinte relevante para os ~87s de startup
+     * observados em produção, antes de considerar qualquer otimização
+     * (ex.: paralelizar as chamadas independentes).
+     */
     @Override
     public void run(ApplicationArguments args) {
+        long start = System.nanoTime();
+
         ensureOrderTtlIndex();
         ensureOrderCodeUniqueIndex();
         ensureMealDisplayOrderIndex();
         ensureSideDishDisplayOrderIndex();
         ensureExtraDisplayOrderIndex();
         ensureUserEmailUniqueIndex();
+
+        long durationMs = (System.nanoTime() - start) / 1_000_000;
+        log.info("STARTUP_MONGO_INDEXES duration={}ms", durationMs);
     }
 
     /**
@@ -90,27 +103,23 @@ public class MongoIndexInitializer implements ApplicationRunner {
         log.info("Retenção de pedidos atualizada para {} dias via collMod", days);
     }
 
-    /** orderCode é o capability token do cliente — precisa ser único e de busca rápida. */
     private void ensureOrderCodeUniqueIndex() {
         mongoTemplate.indexOps(ORDERS_COLLECTION).ensureIndex(
                 new Index().named("order_code_unique").on("order_code", org.springframework.data.domain.Sort.Direction.ASC).unique());
     }
 
-    /** Acelera a query do cardápio (findByActiveTrueOrderByDisplayOrderAsc), chamada em toda carga do Customer App. */
     private void ensureMealDisplayOrderIndex() {
         mongoTemplate.indexOps("meals").ensureIndex(
                 new Index().named("active_display_order").on("active", org.springframework.data.domain.Sort.Direction.ASC)
                         .on("displayOrder", org.springframework.data.domain.Sort.Direction.ASC));
     }
 
-    /** Mesmo padrão de índice do Meal — acelera a query do passo "acompanhamento" do wizard. */
     private void ensureSideDishDisplayOrderIndex() {
         mongoTemplate.indexOps("side_dishes").ensureIndex(
                 new Index().named("active_display_order").on("active", org.springframework.data.domain.Sort.Direction.ASC)
                         .on("displayOrder", org.springframework.data.domain.Sort.Direction.ASC));
     }
 
-    /** Mesmo padrão de índice do Meal — acelera a query do passo "extras" do wizard. */
     private void ensureExtraDisplayOrderIndex() {
         mongoTemplate.indexOps("extras").ensureIndex(
                 new Index().named("active_display_order").on("active", org.springframework.data.domain.Sort.Direction.ASC)

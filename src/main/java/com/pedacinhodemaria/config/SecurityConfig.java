@@ -58,24 +58,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // CORRIGIDO: sem isso, o AnonymousAuthenticationFilter padrão do
-                // Spring Security preenche o SecurityContext com um
-                // AnonymousAuthenticationToken para toda requisição sem JWT — o
-                // que faz o AuthorizationFilter tratar "sem token" como
-                // "autenticado, mas sem a role certa" (AccessDeniedException →
-                // 403), em vez de "não autenticado" (AuthenticationException →
-                // 401). Essa era a causa raiz real do bug relatado: os 4 testes
-                // que esperavam 401 para ausência de JWT recebiam 403. Rotas
-                // permitAll não são afetadas — elas nunca dependem de haver ou
-                // não uma Authentication no contexto.
                 .anonymous(AbstractHttpConfigurer::disable)
-                // CORRIGIDO: AuthenticationEntryPoint explícito, para não
-                // depender do fallback padrão do Spring Security (que, sem
-                // formLogin()/httpBasic() configurados, pode não garantir 401
-                // de forma explícita). Corpo mínimo, sem reaproveitar o
-                // ApiError do GlobalExceptionHandler aqui de propósito — filtros
-                // de segurança rodam antes do Spring MVC, fora do alcance do
-                // @RestControllerAdvice.
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -97,98 +80,38 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/side-dishes/**").permitAll()
                         .requestMatchers("/api/v1/extras/**").permitAll()
                         .requestMatchers("/api/v1/drinks/**").permitAll()
-                        // NOVO (Fase 2A): "pedido pronto" é acionado pelo Dashboard da
-                        // cozinha, não pelo cliente (ver javadoc de
-                        // OrderController.sendReadyWhatsAppMessage) — por isso este
-                        // matcher específico vem ANTES da regra geral de
-                        // /api/v1/orders/** logo abaixo. Spring Security avalia na
-                        // ordem declarada; a primeira regra que casar vence.
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/*/whatsapp-ready-message").hasAnyRole("KITCHEN", "OWNER")
-                        // Cliente: criar pedido, consultar o próprio pedido, política de horário.
                         .requestMatchers("/api/v1/orders/**").permitAll()
-                        // Fase 3: /kitchen/** deixou de ser público — a razão de
-                        // deixá-lo público (dashboard sem login ainda) não existe
-                        // mais desde a Fase 2B. Mesma role já usada em
-                        // whatsapp-ready-message acima.
                         .requestMatchers("/api/v1/kitchen/**").hasAnyRole("KITCHEN", "OWNER")
-                        // Sem isso, POST /api/v1/auth/register caía no anyRequest().denyAll()
-                        // abaixo e retornava 403 antes mesmo de chegar no AuthController.
-                        // Restrito a POST de propósito: não há motivo pra GET/PUT/DELETE.
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
-                        // NOVO: login é público pela mesma razão do
-                        // cadastro — não existe usuário autenticado antes de logar.
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-                        // NOVO: administração de usuários — exclusivo de OWNER
-                        // autenticado. Vem antes do denyAll final, e não há
-                        // nenhum matcher mais genérico que /admin/** que precise
-                        // vir antes dele (nenhuma outra regra usa esse prefixo).
                         .requestMatchers("/api/v1/admin/**").hasRole("OWNER")
                         .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // NOVO: endpoint dedicado de keep-alive (ver KeepAliveController) —
+                        // separado de /actuator/health de propósito (não depende do
+                        // MongoHealthIndicator). Só GET, só esse path exato — mesma
+                        // categoria de exposição pública que /actuator/health acima.
+                        .requestMatchers(HttpMethod.GET, "/internal/keep-alive").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .anyRequest().denyAll()
                 )
-                // NOVO (Fase 2A): lê e valida o Bearer token antes do filtro padrão
-                // de autenticação por usuário/senha do Spring Security.
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * NOVO (Fase 2A). Expõe o AuthenticationManager oficial do Spring
-     * Security (mecanismo pedido explicitamente, não implementação
-     * artesanal) — o Spring Boot o autoconfigura a partir do
-     * PedacinhoUserDetailsService e do PasswordEncoder abaixo, ambos já
-     * existentes; nenhum AuthenticationProvider foi construído manualmente.
-     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
     }
 
-    /**
-     * NOVO (Fase 1). Não encontrado em nenhuma outra classe do projeto
-     * (SecurityConfig, MongoIndexInitializer, User, UserRepository,
-     * RegisterUserUseCase, AuthController, RegisterRequest, UserResponse,
-     * EmailAlreadyExistsException — nenhuma define PasswordEncoder). Único
-     * bean do tipo no projeto; RegisterUserUseCase o injeta por construtor.
-     * Fica aqui por ser a classe @Configuration de segurança já existente —
-     * não criei uma classe nova só para isso.
-     *
-     * INSTRUMENTAÇÃO TEMPORÁRIA (investigação de lentidão no login): o
-     * PasswordEncoder real continua sendo exatamente
-     * new BCryptPasswordEncoder() — nenhum parâmetro de custo mudou, nenhum
-     * comportamento de encode()/matches() muda. Só envolvemos numa camada
-     * que mede a duração de matches() (ver TimingPasswordEncoder) — a
-     * mesma única chamada que o DaoAuthenticationProvider já fazia antes.
-     * Quando a investigação terminar, reverter para:
-     *   return new BCryptPasswordEncoder();
-     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new TimingPasswordEncoder(new BCryptPasswordEncoder());
     }
 
-    /**
-     * CORRIGIDO (Fase 3 — achado da auditoria Fases 1–3): antes deste
-     * método ignorava completamente o campo `allowedOrigins` injetado
-     * acima e liberava "*" sempre, independente de app.cors.allowed-origins
-     * / CORS_ALLOWED_ORIGINS. Agora a lista configurada é a fonte real de
-     * verdade — única fonte, sem domínio hardcoded aqui no Java (todos os
-     * domínios reais vivem em application.yml, ver comentário lá).
-     *
-     * Métodos e headers permanecem "*" de propósito: restringi-los exigiria
-     * mapear TODOS os verbos/headers realmente usados por cada endpoint do
-     * projeto (incluindo módulos que nunca vi o código, como gestão de
-     * cardápio/side-dishes/extras/drinks) — o risco de quebrar algo que não
-     * tenho visibilidade é maior que o ganho de segurança aqui, já que a
-     * origem (o wildcard que a auditoria realmente apontou como bug) é o
-     * controle que importa: sem credentials habilitado, um método/header
-     * liberado de mais não é explorável por uma origem que já não passou
-     * pela checagem de allowedOrigins acima.
-     */
     private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 

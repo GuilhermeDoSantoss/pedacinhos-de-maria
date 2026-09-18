@@ -2,7 +2,10 @@ name: Keep Render Backend Awake
 
 on:
   schedule:
-    # Executa aproximadamente a cada 5 minutos
+    # Executa aproximadamente a cada 5 minutos. O GitHub Actions NÃO
+    # garante essa cadência — schedules frequentes podem sofrer
+    # atraso/descarte do lado da plataforma (best-effort, documentado
+    # pelo próprio GitHub). Isso está fora do controle deste arquivo.
     - cron: "*/5 * * * *"
 
   workflow_dispatch:
@@ -10,6 +13,9 @@ on:
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
+    # NOVO: evita que um run travado (ex.: problema de rede do runner)
+    # fique ocupando o job indefinidamente.
+    timeout-minutes: 5
 
     steps:
       - name: Ping Render Backend
@@ -22,4 +28,4 @@ jobs:
             --retry-delay 15 \
             --retry-all-errors \
             --max-time 120 \
-            https://pedacinho-de-maria.onrender.com/actuator/health
+            https://pedacinho-de-maria.onrender.com/internal/keep-alive
