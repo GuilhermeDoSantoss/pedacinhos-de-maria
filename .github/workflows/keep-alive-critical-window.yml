@@ -1,0 +1,85 @@
+name: Keep Render Awake - Critical Window
+
+on:
+  schedule:
+    # 13:30 UTC = 10:30 horario de Brasilia (UTC-3 fixo, sem horario de
+    # verao desde 2019 - sem variacao sazonal a considerar).
+    - cron: "30 13 * * *"
+
+  workflow_dispatch:
+
+jobs:
+  keep-alive-window:
+    runs-on: ubuntu-latest
+    # Teto absoluto do GitHub Actions para jobs em runners ubuntu-latest e
+    # 360 min (6h), nao configuravel. 355 aqui e a rede de seguranca do
+    # proprio GitHub para encerrar o job a forca caso algo saia do
+    # esperado - quem controla a duracao real pretendida e o calculo de
+    # DURATION dentro do script, que nunca ultrapassa 350 min por design.
+    timeout-minutes: 355
+
+    steps:
+      - name: Ping backend ate 16:15 BRT (19:15 UTC), com pisos de seguranca
+        run: |
+          NOW_EPOCH=$(date -u +%s)
+
+          # Alvo operacional real: manter o backend aquecido ate 16:15
+          # BRT, nao "rodar por N horas a partir de quando o scheduler
+          # disparou". O fim e calculado a partir do horario absoluto de
+          # hoje em UTC, nao como deslocamento do inicio real - assim, se
+          # o scheduler atrasar, a janela nao desliza para depois do
+          # horario que realmente importa para o restaurante.
+          TARGET_END_EPOCH=$(date -u -d "$(date -u +%Y-%m-%d) 19:15:00" +%s)
+
+          # Piso: garante pelo menos 30min de ping mesmo se o scheduler
+          # atrasar tanto que o horario-alvo (19:15 UTC) ja tenha passado
+          # ou esteja muito proximo quando o job realmente comecar.
+          MIN_DURATION_SECONDS=$((30 * 60))
+
+          # Teto de seguranca: protege contra o caso oposto (disparo
+          # manual via workflow_dispatch bem antes de 13:30 UTC) fazendo a
+          # duracao calculada ultrapassar os 360min rigidos do GitHub
+          # Actions. 350 fica sempre abaixo desse limite.
+          MAX_DURATION_SECONDS=$((350 * 60))
+
+          REMAINING=$((TARGET_END_EPOCH - NOW_EPOCH))
+
+          if [ "$REMAINING" -lt "$MIN_DURATION_SECONDS" ]; then
+            DURATION=$MIN_DURATION_SECONDS
+            MODE="floor_fallback"
+          elif [ "$REMAINING" -gt "$MAX_DURATION_SECONDS" ]; then
+            DURATION=$MAX_DURATION_SECONDS
+            MODE="capped_safety"
+          else
+            DURATION=$REMAINING
+            MODE="absolute_target"
+          fi
+
+          END_EPOCH=$((NOW_EPOCH + DURATION))
+
+          echo "KEEP_ALIVE_START mode=$MODE start_utc=$(date -u -d "@$NOW_EPOCH" +'%Y-%m-%dT%H:%M:%SZ') end_utc=$(date -u -d "@$END_EPOCH" +'%Y-%m-%dT%H:%M:%SZ') duration_min=$((DURATION / 60))"
+
+          while [ "$(date -u +%s)" -lt "$END_EPOCH" ]; do
+            TS=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            echo "KEEP_ALIVE_PING timestamp=$TS"
+
+            # Falha de UM ping (inclusive o primeiro, que pode encontrar o
+            # Render dormindo e demorar para acordar) NAO mata o loop - so
+            # e registrada. --max-time 30 evita que esse primeiro ping
+            # travado segure o loop inteiro; a proxima tentativa 4 minutos
+            # depois normalmente ja encontra o backend acordado (cold
+            # start observado: ~90-95s, bem menor que o intervalo entre
+            # pings).
+            if curl --silent --show-error --fail \
+                --max-time 30 \
+                -H "X-Keep-Alive-Source: github-actions" \
+                https://pedacinho-de-maria.onrender.com/internal/keep-alive; then
+              echo "KEEP_ALIVE_SUCCESS timestamp=$TS"
+            else
+              echo "KEEP_ALIVE_FAILURE timestamp=$TS"
+            fi
+
+            sleep 240
+          done
+
+          echo "KEEP_ALIVE_END timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"

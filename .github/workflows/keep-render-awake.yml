@@ -2,19 +2,20 @@ name: Keep Render Backend Awake
 
 on:
   schedule:
-    # Executa aproximadamente a cada 5 minutos. O GitHub Actions NÃO
-    # garante essa cadência — schedules frequentes podem sofrer
-    # atraso/descarte do lado da plataforma (best-effort, documentado
-    # pelo próprio GitHub). Isso está fora do controle deste arquivo.
-    - cron: "*/5 * * * *"
+    # ALTERADO: de */5 (nao entregava a cadencia configurada na pratica -
+    # ver runs #822-#831 com gaps reais de 2-4h) para 1x por hora. A
+    # prioridade de cobertura fina (~4min) agora vive exclusivamente no
+    # workflow keep-alive-critical-window.yml, cobrindo 10:30-16:15 BRT.
+    # Este workflow cobre o restante do dia com cadencia mais simples e
+    # menos exigente do scheduler do GitHub, sem pretender resolver a
+    # causa exata dos atrasos observados (nao comprovada).
+    - cron: "0 * * * *"
 
   workflow_dispatch:
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
-    # NOVO: evita que um run travado (ex.: problema de rede do runner)
-    # fique ocupando o job indefinidamente.
     timeout-minutes: 5
 
     steps:
@@ -28,4 +29,5 @@ jobs:
             --retry-delay 15 \
             --retry-all-errors \
             --max-time 120 \
+            -H "X-Keep-Alive-Source: github-actions-hourly" \
             https://pedacinho-de-maria.onrender.com/internal/keep-alive
