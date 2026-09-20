@@ -2,9 +2,13 @@ name: Keep Render Awake - Critical Window
 
 on:
   schedule:
-    # 13:30 UTC = 10:30 horario de Brasilia (UTC-3 fixo, sem horario de
-    # verao desde 2019 - sem variacao sazonal a considerar).
-    - cron: "30 13 * * *"
+    # Dois disparos para contornar o teto de 6h por job do GitHub Actions
+    # e reduzir a dependencia de um unico horario de disparo, dado o
+    # atraso de scheduler observado em teste real (~3h). Nenhum dos dois
+    # cancela o outro - sem bloco concurrency, os dois podem rodar
+    # simultaneamente sem problema (endpoint idempotente e sem estado).
+    - cron: "0 10 * * *"      # 07:00 BRT (10:00 UTC)
+    - cron: "15 13 * * *"     # 10:15 BRT (13:15 UTC)
 
   workflow_dispatch:
 
@@ -12,10 +16,9 @@ jobs:
   keep-alive-window:
     runs-on: ubuntu-latest
     # Teto absoluto do GitHub Actions para jobs em runners ubuntu-latest e
-    # 360 min (6h), nao configuravel. 355 aqui e a rede de seguranca do
-    # proprio GitHub para encerrar o job a forca caso algo saia do
-    # esperado - quem controla a duracao real pretendida e o calculo de
-    # DURATION dentro do script, que nunca ultrapassa 350 min por design.
+    # 360 min (6h), nao configuravel. 355 e a rede de seguranca do proprio
+    # GitHub - quem controla a duracao real pretendida e o calculo de
+    # DURATION dentro do script, valido igualmente para os dois disparos.
     timeout-minutes: 355
 
     steps:
@@ -25,10 +28,8 @@ jobs:
 
           # Alvo operacional real: manter o backend aquecido ate 16:15
           # BRT, nao "rodar por N horas a partir de quando o scheduler
-          # disparou". O fim e calculado a partir do horario absoluto de
-          # hoje em UTC, nao como deslocamento do inicio real - assim, se
-          # o scheduler atrasar, a janela nao desliza para depois do
-          # horario que realmente importa para o restaurante.
+          # disparou". Identico para os dois disparos - a formula abaixo
+          # se adapta sozinha ao horario real de inicio de cada execucao.
           TARGET_END_EPOCH=$(date -u -d "$(date -u +%Y-%m-%d) 19:15:00" +%s)
 
           # Piso: garante pelo menos 30min de ping mesmo se o scheduler
@@ -36,11 +37,9 @@ jobs:
           # ou esteja muito proximo quando o job realmente comecar.
           MIN_DURATION_SECONDS=$((30 * 60))
 
-          # Teto de seguranca: protege contra o caso oposto (disparo
-          # manual via workflow_dispatch bem antes de 13:30 UTC) fazendo a
-          # duracao calculada ultrapassar os 360min rigidos do GitHub
-          # Actions. 350 fica sempre abaixo desse limite.
-          MAX_DURATION_SECONDS=$((350 * 60))
+          # Teto de seguranca: protege contra a duracao calculada
+          # ultrapassar os 360min rigidos do GitHub Actions.
+          MAX_DURATION_SECONDS=$((355 * 60))
 
           REMAINING=$((TARGET_END_EPOCH - NOW_EPOCH))
 
@@ -57,19 +56,17 @@ jobs:
 
           END_EPOCH=$((NOW_EPOCH + DURATION))
 
-          echo "KEEP_ALIVE_START mode=$MODE start_utc=$(date -u -d "@$NOW_EPOCH" +'%Y-%m-%dT%H:%M:%SZ') end_utc=$(date -u -d "@$END_EPOCH" +'%Y-%m-%dT%H:%M:%SZ') duration_min=$((DURATION / 60))"
+          # NOVO: trigger_cron identifica qual das duas entradas de
+          # schedule disparou esta execucao (o GitHub substitui essa
+          # expressao pelo valor real do cron correspondente antes do
+          # shell rodar). Em disparo manual (workflow_dispatch), este
+          # campo vem vazio - comportamento esperado, nao e erro.
+          echo "KEEP_ALIVE_START mode=$MODE trigger_cron=${{ github.event.schedule }} start_utc=$(date -u -d "@$NOW_EPOCH" +'%Y-%m-%dT%H:%M:%SZ') end_utc=$(date -u -d "@$END_EPOCH" +'%Y-%m-%dT%H:%M:%SZ') duration_min=$((DURATION / 60))"
 
           while [ "$(date -u +%s)" -lt "$END_EPOCH" ]; do
             TS=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
             echo "KEEP_ALIVE_PING timestamp=$TS"
 
-            # Falha de UM ping (inclusive o primeiro, que pode encontrar o
-            # Render dormindo e demorar para acordar) NAO mata o loop - so
-            # e registrada. --max-time 30 evita que esse primeiro ping
-            # travado segure o loop inteiro; a proxima tentativa 4 minutos
-            # depois normalmente ja encontra o backend acordado (cold
-            # start observado: ~90-95s, bem menor que o intervalo entre
-            # pings).
             if curl --silent --show-error --fail \
                 --max-time 30 \
                 -H "X-Keep-Alive-Source: github-actions" \
